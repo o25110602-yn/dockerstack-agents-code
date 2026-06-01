@@ -1,0 +1,9 @@
+/* public/styles.css — minor visual tweaks on top of Tailwind CDN. */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+code,
+.font-mono {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}

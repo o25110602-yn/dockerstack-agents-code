@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Repo Agent Launcher</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"
+    ></script>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-900 min-h-screen">
+    <div x-data="launcher()" x-init="init()" class="max-w-5xl mx-auto p-6">
+      <header class="mb-8 flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight">
+            🚀 Repo Agent Launcher
+          </h1>
+          <p class="text-slate-500 mt-1">
+            Chọn repo + agent → Launch → terminal sẵn sàng trong vài giây.
+          </p>
+        </div>
+        <a
+          href="/admin"
+          class="text-sm text-slate-600 hover:text-slate-900 underline"
+          >Admin →</a
+        >
+      </header>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-6">
+        <!-- Repo selector -->
+        <section class="bg-white rounded-xl shadow-sm border p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold">📦 Chọn Repository</h2>
+            <button
+              @click="loadRepos()"
+              class="text-xs text-slate-500 hover:text-slate-700"
+            >
+              ↻ Refresh
+            </button>
+          </div>
+          <input
+            x-model="repoSearch"
+            type="search"
+            placeholder="Tìm repo theo tên…"
+            class="w-full border rounded-lg px-3 py-2 mb-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          />
+          <div
+            class="max-h-80 overflow-y-auto border rounded-lg divide-y"
+            x-show="filteredRepos().length"
+          >
+            <template x-for="r in filteredRepos()" :key="r.id">
+              <label
+                class="flex items-start gap-3 p-3 cursor-pointer hover:bg-slate-50"
+                :class="selectedRepo?.id === r.id && 'bg-indigo-50'"
+              >
+                <input
+                  type="radio"
+                  name="repo"
+                  :value="r.id"
+                  x-model="selectedRepoId"
+                  class="mt-1"
+                />
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span x-show="r.favorite" class="text-yellow-500">★</span>
+                    <span
+                      class="font-medium text-sm truncate"
+                      x-text="r.fullName"
+                    ></span>
+                    <span
+                      class="text-[10px] uppercase tracking-wide bg-slate-100 px-1.5 py-0.5 rounded"
+                      x-text="r.provider"
+                    ></span>
+                  </div>
+                  <div
+                    class="text-xs text-slate-500 truncate"
+                    x-text="r.description || r.cloneUrl"
+                  ></div>
+                </div>
+              </label>
+            </template>
+          </div>
+          <p
+            x-show="!filteredRepos().length"
+            class="text-sm text-slate-400 italic text-center py-6"
+          >
+            Chưa có repo. Vào
+            <a href="/admin" class="underline text-indigo-600">Admin</a>
+            thêm Git Credential.
+          </p>
+        </section>
+
+        <!-- Agent selector -->
+        <section class="bg-white rounded-xl shadow-sm border p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold">🤖 Chọn Coding Agent</h2>
+            <button
+              @click="loadAgents()"
+              class="text-xs text-slate-500 hover:text-slate-700"
+            >
+              ↻ Refresh
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <template x-for="a in agents" :key="a.id">
+              <label
+                class="border rounded-lg p-3 cursor-pointer hover:border-indigo-300"
+                :class="selectedAgentId === a.id ? 'bg-indigo-50 border-indigo-500' : 'bg-white'"
+              >
+                <input
+                  type="radio"
+                  name="agent"
+                  :value="a.id"
+                  x-model="selectedAgentId"
+                  class="hidden"
+                />
+                <div class="font-medium text-sm" x-text="a.label || a.name"></div>
+                <div class="text-xs text-slate-500 mt-0.5" x-text="a.command"></div>
+                <div
+                  class="text-[10px] mt-1"
+                  :class="agentCredCount(a.id) ? 'text-emerald-600' : 'text-amber-600'"
+                  x-text="agentCredCount(a.id) ? `🔐 ${agentCredCount(a.id)} credential(s)` : '⚠ chưa có credential mặc định'"
+                ></div>
+              </label>
+            </template>
+          </div>
+        </section>
+      </div>
+
+      <!-- Launch button -->
+      <section class="bg-white rounded-xl shadow-sm border p-5 mb-6">
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            @click="doLaunch()"
+            :disabled="!canLaunch() || launching"
+            class="px-6 py-3 rounded-lg bg-indigo-600 text-white font-semibold disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-indigo-700"
+          >
+            <span x-show="!launching">🚀 Launch</span>
+            <span x-show="launching">⏳ Đang khởi tạo…</span>
+          </button>
+          <span class="text-sm text-slate-500" x-show="!canLaunch()">
+            Chọn 1 repo và 1 agent để launch.
+          </span>
+          <span class="text-sm text-emerald-600" x-show="canLaunch() && !launching">
+            ✓ Sẵn sàng launch.
+          </span>
+        </div>
+        <p
+          x-show="lastError"
+          class="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3"
+          x-text="lastError"
+        ></p>
+        <p
+          x-show="lastResult"
+          class="mt-3 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3"
+        >
+          ✓ Slot
+          <code class="font-mono" x-text="lastResult?.slot"></code> ready.
+          <a
+            :href="lastResult?.url"
+            target="_blank"
+            class="underline font-semibold ml-1"
+            x-text="lastResult?.url"
+          ></a>
+        </p>
+      </section>
+
+      <!-- Active sessions -->
+      <section class="bg-white rounded-xl shadow-sm border p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-semibold">🖥 Active Sessions</h2>
+          <button
+            @click="loadSessions()"
+            class="text-xs text-slate-500 hover:text-slate-700"
+          >
+            ↻ Refresh
+          </button>
+        </div>
+        <table class="w-full text-sm" x-show="sessions.length">
+          <thead class="text-left text-xs text-slate-500 border-b">
+            <tr>
+              <th class="py-2">Slot</th>
+              <th>Repo</th>
+              <th>Agent</th>
+              <th>Status</th>
+              <th>URL</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="s in sessions" :key="s.id">
+              <tr class="border-b last:border-b-0" x-show="s.status !== 'closed'">
+                <td class="py-2 font-mono" x-text="s.slot"></td>
+                <td x-text="s.repoFullName"></td>
+                <td x-text="s.agentName"></td>
+                <td>
+                  <span
+                    class="text-xs px-2 py-0.5 rounded"
+                    :class="{
+                      'bg-emerald-100 text-emerald-700': s.status === 'running',
+                      'bg-amber-100 text-amber-700': s.status === 'starting',
+                      'bg-red-100 text-red-700': s.status === 'error'
+                    }"
+                    x-text="s.status"
+                  ></span>
+                </td>
+                <td>
+                  <a
+                    :href="s.url"
+                    target="_blank"
+                    class="text-indigo-600 underline truncate"
+                    x-text="s.url"
+                  ></a>
+                </td>
+                <td>
+                  <button
+                    @click="closeSession(s.id)"
+                    class="text-xs text-red-600 hover:text-red-800 underline"
+                  >
+                    Close
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <p
+          x-show="!sessions.filter(s => s.status !== 'closed').length"
+          class="text-sm text-slate-400 italic text-center py-6"
+        >
+          Chưa có session nào đang chạy.
+        </p>
+      </section>
+    </div>
+
+    <script src="/launcher.js"></script>
+  </body>
+</html>

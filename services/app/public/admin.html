@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Repo Agent — Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"
+    ></script>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-900 min-h-screen">
+    <div x-data="admin()" x-init="init()" class="max-w-6xl mx-auto p-6">
+      <header class="mb-6 flex items-center justify-between">
+        <h1 class="text-3xl font-bold tracking-tight">⚙ Admin</h1>
+        <a
+          href="/"
+          class="text-sm text-slate-600 hover:text-slate-900 underline"
+          >← Launcher</a
+        >
+      </header>
+
+      <!-- Tabs -->
+      <nav class="flex gap-1 border-b mb-6 text-sm">
+        <template
+          x-for="t in ['git', 'repos', 'agents', 'agent-creds', 'slots']"
+        >
+          <button
+            @click="tab = t"
+            class="px-4 py-2 -mb-px border-b-2"
+            :class="tab === t ? 'border-indigo-600 text-indigo-700 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-800'"
+            x-text="tabLabel(t)"
+          ></button>
+        </template>
+      </nav>
+
+      <p
+        x-show="msg"
+        :class="msgKind === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'"
+        class="mb-4 text-sm border rounded-lg p-3"
+        x-text="msg"
+      ></p>
+
+      <!-- ===== Git Credentials ===== -->
+      <section x-show="tab === 'git'" class="space-y-4">
+        <div class="bg-white border rounded-xl shadow-sm p-5">
+          <h2 class="font-semibold mb-3">Add Git Credential</h2>
+          <div class="grid md:grid-cols-2 gap-3">
+            <label class="text-sm">
+              Provider
+              <select x-model="newGit.provider" class="w-full border rounded px-2 py-1.5 mt-0.5">
+                <option value="github">GitHub</option>
+                <option value="gitlab">GitLab</option>
+                <option value="azure">Azure DevOps</option>
+                <option value="custom">Custom Git (manual repo list)</option>
+              </select>
+            </label>
+            <label class="text-sm">
+              Tên (hiển thị)
+              <input
+                x-model="newGit.name"
+                type="text"
+                placeholder="GitHub Main"
+                class="w-full border rounded px-2 py-1.5 mt-0.5"
+              />
+            </label>
+            <label class="text-sm md:col-span-2">
+              Token / PAT
+              <input
+                x-model="newGit.token"
+                type="password"
+                class="w-full border rounded px-2 py-1.5 mt-0.5 font-mono"
+              />
+            </label>
+            <label x-show="newGit.provider === 'custom'" class="text-sm md:col-span-2">
+              Custom repos (1 repo / dòng, format: <code>fullName|cloneUrl|branch</code>)
+              <textarea
+                x-model="newGit.customRepos"
+                rows="4"
+                class="w-full border rounded px-2 py-1.5 mt-0.5 font-mono text-xs"
+                placeholder="acme/api|https://git.example.com/acme/api.git|main"
+              ></textarea>
+            </label>
+          </div>
+          <div class="mt-3 flex gap-2">
+            <button
+              @click="addGit()"
+              class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
+              :disabled="adding"
+            >
+              <span x-show="!adding">Test + Save</span>
+              <span x-show="adding">⏳…</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+              <tr>
+                <th class="text-left p-3">Provider</th>
+                <th class="text-left">Tên</th>
+                <th class="text-left">User</th>
+                <th class="text-left">Orgs</th>
+                <th class="text-left">Token</th>
+                <th class="text-left">Enabled</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="g in gitCreds" :key="g.id">
+                <tr class="border-t">
+                  <td class="p-3 uppercase font-mono text-xs" x-text="g.provider"></td>
+                  <td x-text="g.name"></td>
+                  <td x-text="g.username"></td>
+                  <td class="text-xs text-slate-500" x-text="(g.orgs || []).join(', ')"></td>
+                  <td class="font-mono text-xs" x-text="g.tokenPreview"></td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      :checked="g.enabled"
+                      @change="toggleGit(g.id, $event.target.checked)"
+                    />
+                  </td>
+                  <td class="text-right pr-3 space-x-2">
+                    <button
+                      @click="researchGit(g.id)"
+                      class="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                    >
+                      Research
+                    </button>
+                    <button
+                      @click="testGit(g.id)"
+                      class="text-xs text-slate-600 hover:text-slate-800 underline"
+                    >
+                      Test
+                    </button>
+                    <button
+                      @click="deleteGit(g.id)"
+                      class="text-xs text-red-600 hover:text-red-800 underline"
+                    >
+                      Xóa
+                    </button>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="!gitCreds.length">
+                <td colspan="7" class="text-center text-slate-400 italic py-6">
+                  Chưa có Git Credential nào.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== Repository Cache ===== -->
+      <section x-show="tab === 'repos'" class="bg-white border rounded-xl shadow-sm overflow-hidden">
+        <div class="p-4 flex items-center gap-3 border-b">
+          <input
+            x-model="repoSearch"
+            type="search"
+            placeholder="Tìm repo…"
+            class="flex-1 border rounded px-2 py-1.5 text-sm"
+          />
+          <span class="text-xs text-slate-500" x-text="`${filteredRepos().length} / ${repos.length}`"></span>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+            <tr>
+              <th class="text-left p-3">Repo</th>
+              <th class="text-left">Provider</th>
+              <th class="text-left">Branch</th>
+              <th class="text-left">Git Cred</th>
+              <th class="text-center">⭐</th>
+              <th class="text-center">Enabled</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="r in filteredRepos()" :key="r.id">
+              <tr class="border-t">
+                <td class="p-3">
+                  <div class="font-medium" x-text="r.fullName"></div>
+                  <div class="text-xs text-slate-500 truncate" x-text="r.cloneUrl"></div>
+                </td>
+                <td class="uppercase font-mono text-xs" x-text="r.provider"></td>
+                <td x-text="r.defaultBranch"></td>
+                <td class="text-xs font-mono" x-text="r.gitCredentialId"></td>
+                <td class="text-center">
+                  <button
+                    @click="toggleFavorite(r)"
+                    class="text-lg"
+                    :class="r.favorite ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-500'"
+                  >
+                    ★
+                  </button>
+                </td>
+                <td class="text-center">
+                  <input
+                    type="checkbox"
+                    :checked="r.enabled !== false"
+                    @change="toggleRepoEnabled(r, $event.target.checked)"
+                  />
+                </td>
+              </tr>
+            </template>
+            <tr x-show="!filteredRepos().length">
+              <td colspan="6" class="text-center text-slate-400 italic py-6">
+                Chưa có repo nào trong cache. Add Git Credential để fetch.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ===== Agent Profiles ===== -->
+      <section x-show="tab === 'agents'" class="space-y-4">
+        <div class="bg-white border rounded-xl shadow-sm p-5">
+          <h2 class="font-semibold mb-3">Add Agent Profile</h2>
+          <div class="grid md:grid-cols-3 gap-3">
+            <input
+              x-model="newAgent.name"
+              placeholder="name (codex, agy, …)"
+              class="border rounded px-2 py-1.5 text-sm"
+            />
+            <input
+              x-model="newAgent.label"
+              placeholder="Label hiển thị"
+              class="border rounded px-2 py-1.5 text-sm"
+            />
+            <input
+              x-model="newAgent.command"
+              placeholder="command (codex, agy, claude…)"
+              class="border rounded px-2 py-1.5 text-sm font-mono"
+            />
+            <input
+              x-model="newAgent.args"
+              placeholder="args (optional)"
+              class="border rounded px-2 py-1.5 text-sm font-mono"
+            />
+            <input
+              x-model="newAgent.workdir"
+              placeholder="workdir (default /workspace)"
+              class="border rounded px-2 py-1.5 text-sm font-mono"
+            />
+            <select x-model="newAgent.startMode" class="border rounded px-2 py-1.5 text-sm">
+              <option value="shell">shell</option>
+              <option value="exec">exec</option>
+            </select>
+          </div>
+          <button
+            @click="addAgent()"
+            class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
+          >
+            Add
+          </button>
+        </div>
+
+        <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+              <tr>
+                <th class="text-left p-3">Name</th>
+                <th class="text-left">Label</th>
+                <th class="text-left">Command</th>
+                <th class="text-left">Workdir</th>
+                <th class="text-left">Enabled</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="a in agents" :key="a.id">
+                <tr class="border-t">
+                  <td class="p-3 font-mono text-xs" x-text="a.name"></td>
+                  <td x-text="a.label"></td>
+                  <td class="font-mono text-xs" x-text="`${a.command} ${a.args || ''}`"></td>
+                  <td class="font-mono text-xs" x-text="a.workdir"></td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      :checked="a.enabled !== false"
+                      @change="patchAgent(a.id, { enabled: $event.target.checked })"
+                    />
+                  </td>
+                  <td class="text-right pr-3">
+                    <button
+                      @click="deleteAgent(a.id)"
+                      class="text-xs text-red-600 hover:text-red-800 underline"
+                    >
+                      Xóa
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== Agent Credentials ===== -->
+      <section x-show="tab === 'agent-creds'" class="space-y-4">
+        <div class="bg-white border rounded-xl shadow-sm p-5">
+          <h2 class="font-semibold mb-3">Add Agent Credential</h2>
+          <div class="grid md:grid-cols-2 gap-3">
+            <label class="text-sm">
+              Agent profile
+              <select
+                x-model="newCred.agentProfileId"
+                class="w-full border rounded px-2 py-1.5 mt-0.5"
+              >
+                <option value="">— chọn agent —</option>
+                <template x-for="a in agents" :key="a.id">
+                  <option :value="a.id" x-text="`${a.label} (${a.name})`"></option>
+                </template>
+              </select>
+            </label>
+            <label class="text-sm">
+              Type
+              <select
+                x-model="newCred.type"
+                class="w-full border rounded px-2 py-1.5 mt-0.5"
+              >
+                <option value="file">file (chép config/auth file)</option>
+                <option value="script">script (chạy bootstrap)</option>
+                <option value="env">env (inject env vars)</option>
+                <option value="capture">capture (login thủ công 1 lần)</option>
+              </select>
+            </label>
+            <label class="text-sm md:col-span-2">
+              Tên
+              <input
+                x-model="newCred.name"
+                type="text"
+                placeholder="VD: Codex Default Config"
+                class="w-full border rounded px-2 py-1.5 mt-0.5"
+              />
+            </label>
+            <template x-if="['file','capture'].includes(newCred.type)">
+              <div class="md:col-span-2 space-y-2">
+                <label class="text-sm block">
+                  Target path (trong container)
+                  <input
+                    x-model="newCred.targetPath"
+                    type="text"
+                    placeholder="/home/coder/.codex/config.toml"
+                    class="w-full border rounded px-2 py-1.5 mt-0.5 font-mono"
+                  />
+                </label>
+                <label class="text-sm block">
+                  Mode
+                  <input
+                    x-model="newCred.mode"
+                    type="text"
+                    placeholder="0600"
+                    class="w-32 border rounded px-2 py-1.5 mt-0.5 font-mono"
+                  />
+                </label>
+                <label class="text-sm block">
+                  File content
+                  <textarea
+                    x-model="newCred.content"
+                    rows="6"
+                    class="w-full border rounded px-2 py-1.5 mt-0.5 font-mono text-xs"
+                  ></textarea>
+                </label>
+              </div>
+            </template>
+            <template x-if="newCred.type === 'script'">
+              <label class="text-sm md:col-span-2 block">
+                Bootstrap script (sh)
+                <textarea
+                  x-model="newCred.script"
+                  rows="6"
+                  class="w-full border rounded px-2 py-1.5 mt-0.5 font-mono text-xs"
+                  placeholder="#!/bin/sh&#10;mkdir -p ~/.codex&#10;…"
+                ></textarea>
+              </label>
+            </template>
+            <template x-if="newCred.type === 'env'">
+              <label class="text-sm md:col-span-2 block">
+                Env vars (1 dòng / cặp <code>KEY=VALUE</code>)
+                <textarea
+                  x-model="newCred.envText"
+                  rows="6"
+                  class="w-full border rounded px-2 py-1.5 mt-0.5 font-mono text-xs"
+                  placeholder="OPENCODE_CONFIG=/home/coder/.config/opencode/opencode.json"
+                ></textarea>
+              </label>
+            </template>
+          </div>
+          <button
+            @click="addCred()"
+            class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
+          >
+            Add Agent Credential
+          </button>
+        </div>
+
+        <div class="bg-white border rounded-xl shadow-sm overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+              <tr>
+                <th class="text-left p-3">Agent</th>
+                <th class="text-left">Tên</th>
+                <th class="text-left">Type</th>
+                <th class="text-left">Target / Env</th>
+                <th class="text-left">Enabled</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="c in agentCreds" :key="c.id">
+                <tr class="border-t">
+                  <td class="p-3 font-mono text-xs" x-text="agentLabel(c.agentProfileId)"></td>
+                  <td x-text="c.name"></td>
+                  <td class="uppercase text-xs font-mono" x-text="c.type"></td>
+                  <td class="text-xs font-mono">
+                    <template x-if="c.type !== 'env'">
+                      <span x-text="c.targetPath || '—'"></span>
+                    </template>
+                    <template x-if="c.type === 'env'">
+                      <span x-text="Object.keys(c.env || {}).join(', ')"></span>
+                    </template>
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      :checked="c.enabled !== false"
+                      @change="patchCred(c.id, { enabled: $event.target.checked })"
+                    />
+                  </td>
+                  <td class="text-right pr-3">
+                    <button
+                      @click="deleteCred(c.id)"
+                      class="text-xs text-red-600 hover:text-red-800 underline"
+                    >
+                      Xóa
+                    </button>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="!agentCreds.length">
+                <td colspan="6" class="text-center text-slate-400 italic py-6">
+                  Chưa có Agent Credential.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== Slots ===== -->
+      <section x-show="tab === 'slots'" class="bg-white border rounded-xl shadow-sm p-5">
+        <h2 class="font-semibold mb-3">TTYD Slot Pool</h2>
+        <div class="grid grid-cols-10 gap-1.5 text-[10px] font-mono">
+          <template x-for="s in slots" :key="s.slot">
+            <div
+              class="border rounded p-1.5 text-center"
+              :title="`${s.slot} — ${s.status}${s.sessionId ? ' / ' + s.sessionId : ''}`"
+              :class="{
+                'bg-emerald-50 border-emerald-300': s.status === 'free',
+                'bg-amber-50 border-amber-300': ['reserved','cloning','starting','stopping'].includes(s.status),
+                'bg-indigo-50 border-indigo-300': s.status === 'busy',
+                'bg-red-50 border-red-300': s.status === 'error'
+              }"
+            >
+              <div class="font-bold" x-text="s.slot"></div>
+              <div class="text-[9px]" x-text="s.status"></div>
+            </div>
+          </template>
+        </div>
+        <div class="mt-3 text-xs text-slate-500 flex gap-4">
+          <span>Total: <span x-text="slots.length"></span></span>
+          <span>Free: <span x-text="slots.filter(s=>s.status==='free').length"></span></span>
+          <span>Busy: <span x-text="slots.filter(s=>s.status==='busy').length"></span></span>
+          <span>Error: <span x-text="slots.filter(s=>s.status==='error').length"></span></span>
+        </div>
+      </section>
+    </div>
+
+    <script src="/admin.js"></script>
+  </body>
+</html>

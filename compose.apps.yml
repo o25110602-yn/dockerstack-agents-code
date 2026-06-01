@@ -1,0 +1,93 @@
+# ================================================================
+#  compose.apps.yml — Application Layer
+#  Repo Agent Launcher UI (replaces previous sample app)
+#
+#  Subdomain:        ${PROJECT_NAME}.${DOMAIN}
+#  Aux subdomains:   admin.${PROJECT_NAME}.${DOMAIN}  (ko bắt buộc — same app)
+#  TTYD slots:       ttyd001..ttyd100.${DOMAIN}  (xem compose.repo-ttyd.yml)
+#
+#  Required env (xem .env.example):
+#    APP_PORT, HEALTH_PATH, PROJECT_NAME, DOMAIN, CADDY_EMAIL, TINYAUTH_*
+#    REPO_AGENT_FIREBASE_DATABASE_URL
+#    REPO_AGENT_FIREBASE_SERVICE_ACCOUNT_BASE64
+#  Mount /var/run/docker.sock để app có thể spawn ttyd slot containers
+#  qua `bash docker-compose/scripts/dc.sh --profile repo-ttyd up -d ttyd-XXX`.
+# ================================================================
+
+services:
+  app:
+    container_name: "main-app"
+    image: "${PROJECT_NAME:-myapp}-app:local"
+    build:
+      context: ./services/app
+      dockerfile: Dockerfile
+      args:
+        DOCKER_GID: "${DOCKER_GID:-999}"
+    # Compose vẫn ưu tiên giá trị khai báo explicit trong environment bên dưới.
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: "${NODE_ENV:-production}"
+      PORT: "${APP_PORT:-54100}"
+      HEALTH_PATH: "${HEALTH_PATH:-/api/health}"
+      # Repo Agent Launcher specific
+      ENABLE_REPO_AGENT: "${ENABLE_REPO_AGENT:-true}"
+      REPO_AGENT_MANAGER_HOST: "${REPO_AGENT_MANAGER_HOST:-agent.${DOMAIN}}"
+      REPO_AGENT_MANAGER_PORT: "${REPO_AGENT_MANAGER_PORT:-54100}"
+      REPO_AGENT_FIREBASE_DATABASE_URL: "${REPO_AGENT_FIREBASE_DATABASE_URL}"
+      REPO_AGENT_FIREBASE_SERVICE_ACCOUNT_BASE64: "${REPO_AGENT_FIREBASE_SERVICE_ACCOUNT_BASE64}"
+      # Where the app finds the project root (so it can call dc.sh) inside
+      # the container — we bind-mount the project root at /workspace.
+      REPO_AGENT_PROJECT_ROOT: "/workspace"
+      REPO_AGENT_DC_SCRIPT: "/workspace/docker-compose/scripts/dc.sh"
+      REPO_AGENT_REPOS_ROOT: "/repos"
+      REPO_AGENT_SLOTS_ROOT: "/slots"
+      REPO_AGENT_TOTAL_SLOTS: "${REPO_AGENT_TOTAL_SLOTS:-100}"
+      DOMAIN: "${DOMAIN}"
+      LOG_DIR: "/app/logs"
+    ports:
+      - "127.0.0.1:${APP_HOST_PORT:-54100}:${APP_PORT:-54100}"
+    volumes:
+      - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}/app/logs:/app/logs
+      - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}/app/data:/app/data
+      # Repo clones (shared read-only with ttyd slot containers)
+      - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}/repo-agent/repos:/repos
+      # Per-slot folders (runtime.env + injected-files)
+      - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}/repo-agent/slots:/slots
+      # Docker socket — needed to spawn/stop ttyd slot containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Project root mounted read-only so dc.sh + compose files are reachable
+      - .:/workspace:ro
+    labels:
+      # Public HTTP sites behind Cloudflare Tunnel.
+      - "caddy=http://${PROJECT_NAME}.${DOMAIN}, http://main.${DOMAIN}, http://${DOMAIN}, http://${PROJECT_NAME_TAILSCALE}.${TAILSCALE_TAILNET_DOMAIN}"
+      - "caddy.forward_auth=tinyauth:${TINYAUTH_PORT:-3000}"
+      - "caddy.forward_auth.uri=/api/auth/caddy"
+      - "caddy.forward_auth.header_up=X-Forwarded-Proto https"
+      - "caddy.forward_auth.copy_headers=Remote-User Remote-Email Remote-Name Remote-Groups"
+      - "caddy.reverse_proxy={{upstreams ${APP_PORT:-54100}}}"
+      # Internal HTTPS site for Tailscale / trusted LAN access.
+      - "caddy_1=https://${PROJECT_NAME_TAILSCALE:-myapp}.${TAILSCALE_TAILNET_DOMAIN:-tailnet.local}"
+      - "caddy_1.tls=internal"
+      - "caddy_1.forward_auth=tinyauth:${TINYAUTH_PORT:-3000}"
+      - "caddy_1.forward_auth.uri=/api/auth/caddy"
+      - "caddy_1.forward_auth.header_up=X-Forwarded-Proto https"
+      - "caddy_1.forward_auth.copy_headers=Remote-User Remote-Email Remote-Name Remote-Groups"
+      - "caddy_1.reverse_proxy={{upstreams ${APP_PORT:-54100}}}"
+    networks: [app_net]
+    depends_on:
+      litestream-restore:
+        condition: service_completed_successfully
+      tinyauth:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - "CMD"
+        - "sh"
+        - "-c"
+        - "wget -qO- http://localhost:${APP_PORT:-54100}${HEALTH_PATH:-/api/health} || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

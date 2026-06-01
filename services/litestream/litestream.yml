@@ -1,0 +1,56 @@
+# ================================================================
+#  /etc/litestream.yml — Multi-DB SQLite replication
+#
+#  Biến bắt buộc:
+#    LITESTREAM_S3_ENDPOINT          — vd: https://<id>.supabase.co/storage/v1/s3
+#                                          hoặc https://s3.amazonaws.com
+#    LITESTREAM_S3_BUCKET            — tên bucket
+#    LITESTREAM_S3_ACCESS_KEY_ID     — S3 / Supabase access key
+#    LITESTREAM_S3_SECRET_ACCESS_KEY — S3 / Supabase secret key
+#
+#  Mỗi DB dùng path riêng trên S3 để tránh ghi đè dữ liệu.
+#  Thêm DB mới: copy block entry, đổi path + S3 path env.
+# ================================================================
+
+dbs:
+  # ── Tinyauth SQLite ──────────────────────────────────────────────
+  - path: /data/tinyauth/${TINYAUTH_DB_FILE}
+    replicas:
+      - type: s3
+        endpoint: ${LITESTREAM_S3_ENDPOINT}
+        bucket: ${LITESTREAM_S3_BUCKET}
+        path: ${LITESTREAM_TINYAUTH_S3_PATH}
+        access-key-id: ${LITESTREAM_S3_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_S3_SECRET_ACCESS_KEY}
+
+        # Upload WAL frames lên S3 mỗi 5s
+        # → mất tối đa 5s data nếu SIGKILL không có grace period
+        sync-interval: ${LITESTREAM_SYNC_INTERVAL}
+
+        # Tối ưu startup time:
+        # Giảm snapshot-interval từ 1h → 30m.
+        # Khi restore, Litestream phải replay WAL frames từ snapshot
+        # cuối cùng đến hiện tại. Snapshot càng gần → replay càng ít
+        # → restore nhanh hơn.
+        # Với 30m: worst-case replay = 30 phút writes.
+        # Chi phí: gấp đôi số lần tạo snapshot (vẫn nhỏ so với WAL).
+        snapshot-interval: ${LITESTREAM_SNAPSHOT_INTERVAL}
+
+        # Giữ 48h generations để tự dọn phiên bản cũ hơn
+        retention: ${LITESTREAM_RETENTION}
+        retention-check-interval: ${LITESTREAM_RETENTION_CHECK_INTERVAL}
+
+  # ── App SQLite ───────────────────────────────────────────────────
+  - path: /data/app/${LITESTREAM_APP_DB_FILE}
+    replicas:
+      - type: s3
+        endpoint: ${LITESTREAM_S3_ENDPOINT}
+        bucket: ${LITESTREAM_S3_BUCKET}
+        path: ${LITESTREAM_APP_S3_PATH}
+        access-key-id: ${LITESTREAM_S3_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_S3_SECRET_ACCESS_KEY}
+
+        sync-interval: ${LITESTREAM_SYNC_INTERVAL}
+        snapshot-interval: ${LITESTREAM_SNAPSHOT_INTERVAL}
+        retention: ${LITESTREAM_RETENTION}
+        retention-check-interval: ${LITESTREAM_RETENTION_CHECK_INTERVAL}

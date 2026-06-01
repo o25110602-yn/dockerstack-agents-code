@@ -1,0 +1,16 @@
+# .dockerignore — Repo Agent Launcher UI
+node_modules
+npm-debug.log
+.env
+.env.local
+.env.*.local
+logs
+*.log
+.git
+.gitignore
+.DS_Store
+.vscode
+.idea
+data
+slots
+repos

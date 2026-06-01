@@ -1,0 +1,25 @@
+# ================================================================
+#  compose.rclone-gate.yml — Restore Gate Override
+#
+#  File này CHỈ được dc.sh nạp khi ENABLE_RCLONE=true.
+#  Vai trò: thêm depends_on rclone-restore vào các service phải có
+#           data trước khi chạy (litestream-restore, app).
+#
+#  Tách riêng để khi tắt rclone, file này không được merge → các
+#  service không cần phụ thuộc vào rclone-restore.
+#
+#  Cơ chế: docker compose merge → field depends_on được cộng dồn,
+#  vì vậy depends_on cũ trong compose.auth.yml/compose.apps.yml
+#  được giữ nguyên, chỉ thêm rclone-restore.
+# ================================================================
+
+services:
+  litestream-restore:
+    depends_on:
+      rclone-restore:
+        condition: service_completed_successfully
+
+  app:
+    depends_on:
+      rclone-restore:
+        condition: service_completed_successfully
