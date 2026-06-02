@@ -18,7 +18,7 @@ services:
       context: ./services/deploy-code
       dockerfile: Dockerfile
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     environment:
       DOCKER_DEPLOY_CODE_ENABLED: "${DOCKER_DEPLOY_CODE_ENABLED:-false}"
       DOCKER_DEPLOY_CODE_PORT: "${DOCKER_DEPLOY_CODE_PORT:-53999}"

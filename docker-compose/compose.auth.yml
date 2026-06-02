@@ -9,7 +9,7 @@ services:
     image: litestream/litestream:0.3.13
     profiles: [litestream]
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     entrypoint: ["/bin/sh", "/entrypoint.sh", "restore-only"]
     volumes:
       - ./services/litestream/litestream.yml:/etc/litestream.yml:ro
@@ -23,7 +23,7 @@ services:
     image: litestream/litestream:0.3.13
     profiles: [litestream]
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     volumes:
       - ./services/litestream/litestream.yml:/etc/litestream.yml:ro

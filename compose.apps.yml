@@ -26,7 +26,7 @@ services:
         DOCKER_GID: "${DOCKER_GID:-999}"
     # Compose vẫn ưu tiên giá trị khai báo explicit trong environment bên dưới.
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     environment:
       NODE_ENV: "${NODE_ENV:-production}"
       PORT: "${APP_PORT:-54100}"
@@ -41,6 +41,15 @@ services:
       # the container — we bind-mount the project root at /workspace.
       REPO_AGENT_PROJECT_ROOT: "/workspace"
       REPO_AGENT_DC_SCRIPT: "/workspace/docker-compose/scripts/dc.sh"
+      # HOST_PROJECT_ROOT — đường dẫn THẬT của project trên host runner
+      # (ví dụ: /home/runner/work/<repo>/<repo> trên GitHub Actions).
+      # Cần để khi dc.sh chạy trong container và share /var/run/docker.sock
+      # với host, Compose sẽ truyền `--project-directory` là path host —
+      # nếu không Docker daemon trên host sẽ "path not found" khi build/mount
+      # vì /workspace chỉ tồn tại trong container.
+      # Mặc định lấy từ env runner; nếu rỗng, dc.sh sẽ tự fallback (không an toàn
+      # khi gọi từ trong container — nên phải set ở host trước khi `up`).
+      HOST_PROJECT_ROOT: "${HOST_PROJECT_ROOT:-}"
       REPO_AGENT_REPOS_ROOT: "/repos"
       REPO_AGENT_SLOTS_ROOT: "/slots"
       REPO_AGENT_TOTAL_SLOTS: "${REPO_AGENT_TOTAL_SLOTS:-100}"

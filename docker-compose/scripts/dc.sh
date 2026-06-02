@@ -101,10 +101,40 @@ prepare_docker_volume_dirs() {
 }
 
 # ── Load .env ─────────────────────────────────────────────────────
+# Lưu lại HOST_PROJECT_ROOT từ process env (do GH Actions / caller set)
+# trước khi load .env có thể ghi đè bằng giá trị rỗng.
+_HOST_PROJECT_ROOT_FROM_ENV="${HOST_PROJECT_ROOT:-}"
+
 if [ -f "$ROOT_DIR/.env" ]; then
   load_env_file "$ROOT_DIR/.env"
 else
   echo "⚠️  .env not found — using defaults. Run: cp .env.example .env" >&2
+fi
+
+# ── HOST_PROJECT_ROOT resolution ──────────────────────────────────
+# Thứ tự ưu tiên (giá trị non-empty đầu tiên thắng):
+#   1. Giá trị từ process env (do GitHub Actions / caller set TRƯỚC khi gọi
+#      dc.sh) — đây là giá trị quan trọng nhất, vì host runner cần truyền
+#      đúng path host vào main-app container.
+#   2. Giá trị trong .env (cho phép user override thủ công).
+#   3. ROOT_DIR — fallback an toàn khi dc.sh chạy *trực tiếp trên host*
+#      (không phải trong container). Trường hợp trong container mà cả 2
+#      nguồn trên đều rỗng thì path /workspace sẽ KHÔNG resolve được trên
+#      host daemon → sẽ báo "path not found" rõ ràng.
+if [ -n "$_HOST_PROJECT_ROOT_FROM_ENV" ]; then
+  HOST_PROJECT_ROOT="$_HOST_PROJECT_ROOT_FROM_ENV"
+elif [ -z "${HOST_PROJECT_ROOT:-}" ]; then
+  HOST_PROJECT_ROOT="$ROOT_DIR"
+fi
+export HOST_PROJECT_ROOT
+unset _HOST_PROJECT_ROOT_FROM_ENV
+
+# ── ENV_FILE resolution ──────────────────────────────────────────
+# Path tuyệt đối tới .env trong filesystem hiện tại (không phải host path).
+# Cần để các compose YAML reference `env_file: ${ENV_FILE:-./.env}` resolve
+# về đúng file trong container (vì --project-directory trỏ tới host path).
+if [ -f "$ROOT_DIR/.env" ]; then
+  export ENV_FILE="$ROOT_DIR/.env"
 fi
 
 # Normalize tags to comma-separated form without spaces.
@@ -266,18 +296,39 @@ fi
 # ── Debug info (set DC_VERBOSE=1 to show) ─────────────────────
 if [ "${DC_VERBOSE:-0}" = "1" ]; then
   echo "── dc.sh debug ──────────────────────────────────"
-  echo "  OS        : $_OS"
-  echo "  PROJECT   : ${PROJECT_NAME:-?}"
-  echo "  DOMAIN    : ${DOMAIN:-?}"
-  echo "  PROFILES  : ${PROFILE_ARGS[*]:-<none>}"
-  echo "  FILES     : ${FILES[*]}"
+  echo "  OS         : $_OS"
+  echo "  PROJECT    : ${PROJECT_NAME:-?}"
+  echo "  DOMAIN     : ${DOMAIN:-?}"
+  echo "  ROOT_DIR   : $ROOT_DIR"
+  echo "  HOST_ROOT  : $HOST_PROJECT_ROOT"
+  echo "  PROFILES   : ${PROFILE_ARGS[*]:-<none>}"
+  echo "  FILES      : ${FILES[*]}"
   echo "─────────────────────────────────────────────────"
 fi
 
+# Cảnh báo nhanh khi HOST_PROJECT_ROOT khác ROOT_DIR và path không tồn tại
+# trên filesystem hiện tại — nghĩa là chúng ta đang chạy *trong container*
+# và Docker daemon ở host cần path host. Không cần check tồn tại trong
+# container vì path đó là cho daemon trên host, không phải cho container.
+if [ "$HOST_PROJECT_ROOT" != "$ROOT_DIR" ] && [ "${DC_VERBOSE:-0}" = "1" ]; then
+  echo "  Note: dùng HOST_PROJECT_ROOT='$HOST_PROJECT_ROOT' (khác ROOT_DIR)" \
+       "cho --project-directory để Docker daemon trên host phân giải đúng path."
+fi
+
 # ── Execute ───────────────────────────────────────────────────
+# --env-file: explicit path tới .env trong filesystem hiện tại (ROOT_DIR).
+#   Cần thiết khi --project-directory trỏ tới path host (khác ROOT_DIR khi
+#   chạy trong container) — Compose mặc định tìm .env ở project-directory,
+#   nhưng path đó chỉ tồn tại trên host, không có trong container.
+ENV_FILE_ARGS=()
+if [ -f "$ROOT_DIR/.env" ]; then
+  ENV_FILE_ARGS+=( --env-file "$ROOT_DIR/.env" )
+fi
+
 exec docker compose \
+  "${ENV_FILE_ARGS[@]}" \
   "${FILES[@]}" \
-  --project-directory "$ROOT_DIR" \
+  --project-directory "$HOST_PROJECT_ROOT" \
   --project-name "${PROJECT_NAME:-myapp}" \
   "${PROFILE_ARGS[@]}" \
   "$@"

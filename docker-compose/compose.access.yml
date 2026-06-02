@@ -24,7 +24,7 @@ services:
     command: ["node", "/workspace/tailscale/tailscale-keep-ip.js", "prepare"]
     # Compose vẫn ưu tiên giá trị khai báo explicit trong environment bên dưới.
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     environment:
       TAILSCALE_KEEP_IP_ENABLE: "${TAILSCALE_KEEP_IP_ENABLE:-false}"
       TAILSCALE_KEEP_IP_REMOVE_HOSTNAME_ENABLE: "${TAILSCALE_KEEP_IP_REMOVE_HOSTNAME_ENABLE:-}"
@@ -50,7 +50,7 @@ services:
     command: ["node", "/workspace/tailscale/tailscale-keep-ip.js", "prepare"]
     # Compose vẫn ưu tiên giá trị khai báo explicit trong environment bên dưới.
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     environment:
       TAILSCALE_KEEP_IP_ENABLE: "${TAILSCALE_KEEP_IP_ENABLE:-false}"
       TAILSCALE_KEEP_IP_REMOVE_HOSTNAME_ENABLE: "${TAILSCALE_KEEP_IP_REMOVE_HOSTNAME_ENABLE:-}"
@@ -79,7 +79,7 @@ services:
         condition: service_completed_successfully
     # Compose vẫn ưu tiên giá trị khai báo explicit trong environment bên dưới.
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     environment:
       TS_AUTHKEY: "${TAILSCALE_AUTHKEY:-}"
       TS_USERSPACE: "false"
@@ -112,7 +112,7 @@ services:
         condition: service_completed_successfully
     # Compose vẫn ưu tiên giá trị khai báo explicit trong environment bên dưới.
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     environment:
       TS_AUTHKEY: "${TAILSCALE_AUTHKEY:-}"
       TS_USERSPACE: "true"
@@ -142,7 +142,7 @@ services:
     command: ["node", "/workspace/tailscale/tailscale-watchdog.js"]
     # Compose vẫn ưu tiên giá trị khai báo explicit trong environment bên dưới.
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     environment:
       TAILSCALE_WATCHDOG_MODE: "${TAILSCALE_WATCHDOG_MODE:-heal}"
       TAILSCALE_WATCHDOG_INTERVAL_SEC: "${TAILSCALE_WATCHDOG_INTERVAL_SEC:-30}"
@@ -178,7 +178,7 @@ services:
     command: ["node", "/workspace/tailscale/tailscale-watchdog.js"]
     # Compose vẫn ưu tiên giá trị khai báo explicit trong environment bên dưới.
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     environment:
       TAILSCALE_WATCHDOG_MODE: "${TAILSCALE_WATCHDOG_MODE:-heal}"
       TAILSCALE_WATCHDOG_INTERVAL_SEC: "${TAILSCALE_WATCHDOG_INTERVAL_SEC:-30}"
@@ -212,7 +212,7 @@ services:
     command: ["node", "/workspace/tailscale/tailscale-keep-ip.js", "backup-loop"]
     # Compose vẫn ưu tiên giá trị khai báo explicit trong environment bên dưới.
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     environment:
       TAILSCALE_KEEP_IP_ENABLE: "${TAILSCALE_KEEP_IP_ENABLE:-false}"
       TAILSCALE_KEEP_IP_FIREBASE_URL: "${TAILSCALE_KEEP_IP_FIREBASE_URL:-}"
@@ -239,7 +239,7 @@ services:
     command: ["node", "/workspace/tailscale/tailscale-keep-ip.js", "backup-loop"]
     # Compose vẫn ưu tiên giá trị khai báo explicit trong environment bên dưới.
     env_file:
-      - ./.env
+      - ${ENV_FILE:-./.env}
     environment:
       TAILSCALE_KEEP_IP_ENABLE: "${TAILSCALE_KEEP_IP_ENABLE:-false}"
       TAILSCALE_KEEP_IP_FIREBASE_URL: "${TAILSCALE_KEEP_IP_FIREBASE_URL:-}"

@@ -30,18 +30,25 @@ runs:
       run: dotenvrtdb -e .env -- node docker-compose/scripts/validate-env.js
 
     # ── Step 5: Deploy via dc.sh ──────────────────────────────
+    # HOST_PROJECT_ROOT phải là path TUYỆT ĐỐI của project trên host runner —
+    # cần để main-app (chạy trong container, share /var/run/docker.sock) có thể
+    # spawn ttyd slot containers qua dc.sh mà không bị "path not found".
     - name: Build & start services (Linux)
       if: runner.os == 'Linux'
       shell: bash
+      env:
+        HOST_PROJECT_ROOT: ${{ github.workspace }}
       run: |
         bash docker-compose/scripts/dc.sh up -d --build --remove-orphans
 
     - name: Build & start services (Windows/WSL2)
       if: runner.os == 'Windows'
       shell: pwsh
+      env:
+        HOST_PROJECT_ROOT: ${{ github.workspace }}
       run: |
         $wsl = $env:WSL_WORKSPACE
-        wsl -d Ubuntu -- bash -c "cd '$wsl' && bash docker-compose/scripts/dc.sh up -d --build --remove-orphans"
+        wsl -d Ubuntu -- bash -c "cd '$wsl' && HOST_PROJECT_ROOT='$wsl' bash docker-compose/scripts/dc.sh up -d --build --remove-orphans"
 
     # ── Step 6: Cleanup + keepalive ───────────────────────────
     - name: Clean up unused images (Linux)
