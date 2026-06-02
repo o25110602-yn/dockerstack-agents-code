@@ -255,6 +255,14 @@ if [ "${ENABLE_RCLONE:-false}" = "true" ]; then
   FILES+=( -f "$ROOT_DIR/docker-compose/compose.rclone-gate.yml" )
 fi
 
+# Khi litestream bật, nạp gate override để tinyauth + app depends_on
+# litestream-restore (đảm bảo SQLite được restore từ S3 trước khi start).
+# Khi tắt, file này không được merge → tinyauth/app chạy độc lập, lưu data
+# trực tiếp tại ${DOCKER_VOLUMES_ROOT}/tinyauth/ trong docker-volumes.
+if [ "${ENABLE_LITESTREAM:-true}" = "true" ]; then
+  FILES+=( -f "$ROOT_DIR/docker-compose/compose.auth.litestream-gate.yml" )
+fi
+
 # ── Debug info (set DC_VERBOSE=1 to show) ─────────────────────
 if [ "${DC_VERBOSE:-0}" = "1" ]; then
   echo "── dc.sh debug ──────────────────────────────────"

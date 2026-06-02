@@ -35,6 +35,11 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # Tinyauth — KHÔNG depends_on litestream-restore ở đây nữa.
+  # Khi ENABLE_LITESTREAM=true, dc.sh sẽ thêm file
+  #   docker-compose/compose.auth.litestream-gate.yml
+  # để inject depends_on rclone-style. Khi tắt litestream, tinyauth chạy
+  # độc lập và lưu DB vào ${DOCKER_VOLUMES_ROOT}/tinyauth/ (bind mount).
   tinyauth:
     container_name: "tinyauth"
     image: ghcr.io/steveiliop56/tinyauth:v5
@@ -67,9 +72,6 @@ services:
       - "caddy.reverse_proxy={{upstreams ${TINYAUTH_PORT:-3000}}}"
       - "caddy.reverse_proxy.header_up=X-Forwarded-Proto https"
     networks: [app_net]
-    depends_on:
-      litestream-restore:
-        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "tinyauth", "healthcheck"]

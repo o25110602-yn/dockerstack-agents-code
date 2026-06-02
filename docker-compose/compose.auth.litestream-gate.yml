@@ -1,0 +1,27 @@
+# ================================================================
+#  compose.auth.litestream-gate.yml — Litestream Restore Gate Override
+#
+#  File này CHỈ được dc.sh nạp khi ENABLE_LITESTREAM=true.
+#  Vai trò: thêm depends_on litestream-restore vào tinyauth và app
+#  để đảm bảo SQLite được restore xong trước khi service start.
+#
+#  Tách riêng (giống pattern compose.rclone-gate.yml) để khi tắt
+#  Litestream, file này không được merge → tinyauth + app vẫn chạy
+#  bình thường, lưu data trực tiếp tại
+#  ${DOCKER_VOLUMES_ROOT}/tinyauth/ (bind-mounted volume).
+#
+#  Cơ chế: docker compose merge → field depends_on được cộng dồn,
+#  vì vậy depends_on cũ trong compose.auth.yml/compose.apps.yml
+#  được giữ nguyên, chỉ thêm litestream-restore.
+# ================================================================
+
+services:
+  tinyauth:
+    depends_on:
+      litestream-restore:
+        condition: service_completed_successfully
+
+  app:
+    depends_on:
+      litestream-restore:
+        condition: service_completed_successfully

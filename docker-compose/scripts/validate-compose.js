@@ -58,6 +58,7 @@ console.log('\n🐳  Compose Config Validation\n');
 const env = parseEnvFile('.env');
 const files = [...FILES];
 if (env.ENABLE_RCLONE === 'true') files.push('docker-compose/compose.rclone-gate.yml');
+if (env.ENABLE_LITESTREAM !== 'false') files.push('docker-compose/compose.auth.litestream-gate.yml');
 
 // Check all files exist
 let abort = false;
