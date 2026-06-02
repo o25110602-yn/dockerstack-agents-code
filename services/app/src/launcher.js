@@ -16,12 +16,8 @@ const agentCreds = require("./agent-creds");
 
 const TOTAL_SLOTS = parseInt(process.env.REPO_AGENT_TOTAL_SLOTS || "100", 10);
 const DOMAIN = process.env.DOMAIN || "localhost";
-const PROJECT_ROOT =
-  process.env.REPO_AGENT_PROJECT_ROOT ||
-  path.resolve(__dirname, "../../.."); // /workspace
-const DC_SCRIPT =
-  process.env.REPO_AGENT_DC_SCRIPT ||
-  path.join(PROJECT_ROOT, "docker-compose/scripts/dc.sh");
+const PROJECT_ROOT = process.env.REPO_AGENT_PROJECT_ROOT || path.resolve(__dirname, "../../.."); // /workspace
+const DC_SCRIPT = process.env.REPO_AGENT_DC_SCRIPT || path.join(PROJECT_ROOT, "docker-compose/scripts/dc.sh");
 
 function slotName(slot) {
   return `ttyd-${slot}`;
@@ -66,22 +62,31 @@ async function ensureSlotPoolInitialized() {
 
 async function reserveFreeSlot(sessionId) {
   await ensureSlotPoolInitialized();
-  // Try to atomically transition a free slot to "reserved".
+
   for (let i = 1; i <= TOTAL_SLOTS; i += 1) {
     const slot = pad3(i);
     const ref = fb.db().ref(`/repoAgent/ttydSlots/${slot}`);
+
+    // Pre-fetch để warm cache — tránh transaction abort do cur===null lần đầu
+    const snap = await ref.once("value");
+    const cur0 = snap.val();
+    if (!cur0 || cur0.status !== "free") continue;
+
+    // Atomic CAS
     const tx = await ref.transaction((cur) => {
-      if (!cur) return; // abort
-      if (cur.status !== "free") return; // abort
+      if (!cur || cur.status !== "free") return; // abort: race
       cur.status = "reserved";
       cur.sessionId = sessionId;
       cur.updatedAt = nowIso();
       return cur;
     });
+
     if (tx.committed && tx.snapshot && tx.snapshot.val()) {
       return tx.snapshot.val();
     }
+    // race lost → thử slot tiếp theo
   }
+
   throw new Error("No free TTYD slot available");
 }
 
@@ -110,32 +115,18 @@ function runDc(args, opts = {}) {
           return reject(err);
         }
         resolve({ stdout, stderr });
-      }
+      },
     );
   });
 }
 
 async function startSlotContainer(slot) {
   // bash docker-compose/scripts/dc.sh --profile repo-ttyd up -d --build --force-recreate ttyd-<slot>
-  return runDc([
-    "--profile",
-    "repo-ttyd",
-    "up",
-    "-d",
-    "--build",
-    "--force-recreate",
-    slotName(slot),
-  ]);
+  return runDc(["--profile", "repo-ttyd", "up", "-d", "--build", "--force-recreate", slotName(slot)]);
 }
 
 async function stopSlotContainer(slot) {
-  return runDc([
-    "--profile",
-    "repo-ttyd",
-    "rm",
-    "-sf",
-    slotName(slot),
-  ]).catch(() => null);
+  return runDc(["--profile", "repo-ttyd", "rm", "-sf", slotName(slot)]).catch(() => null);
 }
 
 // ── Launch flow ───────────────────────────────────────────────────
@@ -147,9 +138,7 @@ async function launch({ repoId, agentProfileId, branch }) {
   const repo = await fb.readPath(`/repoAgent/repoCache/${repoId}`);
   if (!repo) throw new Error(`Repo not found: ${repoId}`);
 
-  const gitCred = await fb.readPath(
-    `/repoAgent/gitCredentials/${repo.gitCredentialId}`
-  );
+  const gitCred = await fb.readPath(`/repoAgent/gitCredentials/${repo.gitCredentialId}`);
   if (!gitCred) {
     throw new Error(`Git credential not found: ${repo.gitCredentialId}`);
   }
@@ -157,9 +146,7 @@ async function launch({ repoId, agentProfileId, branch }) {
     throw new Error("Git credential is disabled");
   }
 
-  const agentProfile = await fb.readPath(
-    `/repoAgent/agentProfiles/${agentProfileId}`
-  );
+  const agentProfile = await fb.readPath(`/repoAgent/agentProfiles/${agentProfileId}`);
   if (!agentProfile) {
     throw new Error(`Agent profile not found: ${agentProfileId}`);
   }
@@ -169,12 +156,7 @@ async function launch({ repoId, agentProfileId, branch }) {
 
   // Filter agent credentials for this profile.
   const allCreds = (await fb.readPath("/repoAgent/agentCredentials")) || {};
-  const myCreds = Object.values(allCreds).filter(
-    (c) =>
-      c &&
-      c.agentProfileId === agentProfileId &&
-      c.enabled !== false
-  );
+  const myCreds = Object.values(allCreds).filter((c) => c && c.agentProfileId === agentProfileId && c.enabled !== false);
 
   // Allocate session id first so slot.sessionId is meaningful.
   const sessionId = genId("sess");
