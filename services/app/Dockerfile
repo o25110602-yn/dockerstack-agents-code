@@ -25,11 +25,13 @@ RUN apk add --no-cache \
 # bằng GID động (mount /var/run/docker.sock từ host).
 # GID mặc định = 999 (Linux phổ biến); có thể override bằng build-arg.
 ARG DOCKER_GID=999
-RUN addgroup -g ${DOCKER_GID} docker 2>/dev/null || true \
+RUN \
+    if ! getent group docker > /dev/null 2>&1; then \
+        addgroup -g ${DOCKER_GID} docker || addgroup docker; \
+    fi \
  && addgroup -S appgroup \
  && adduser -S -G appgroup appuser \
- && addgroup appuser docker \
- && addgroup appuser root
+ && addgroup appuser docker
 
 WORKDIR /app
 
