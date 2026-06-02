@@ -1,25 +1,29 @@
 // src/launcher.js — TTYD slot allocation + lifecycle
 //
-// 100 slot tĩnh: 001..100. Mỗi slot ánh xạ đến container "repo-agent-ttyd-<slot>"
-// và service compose "ttyd-<slot>" trong compose.repo-ttyd.yml.
-// Container chỉ được start khi user bấm Launch.
+// Refactored: bỏ compose service tĩnh + dc.sh. Mỗi slot bây giờ là 1 container
+// được manager spawn trực tiếp bằng `docker run` qua module docker-runner.
+//
+// Slot pool: 100 slot tĩnh 001..100 (cấu hình qua REPO_AGENT_TOTAL_SLOTS).
+// Mỗi slot ánh xạ:
+//   - container name : repo-agent-ttyd-<slot>
+//   - URL            : https://ttyd<slot>.${DOMAIN}    (subdomain không có dấu gạch)
+//
+// Container chỉ start khi user bấm Launch. Khi close → docker rm -f.
 
 "use strict";
 
-const fs = require("fs");
-const path = require("path");
-const { execFile } = require("child_process");
 const fb = require("./firebase");
 const { genId, nowIso, pad3 } = require("./util");
 const repoStore = require("./repo-store");
 const agentCreds = require("./agent-creds");
+const dockerRunner = require("./docker-runner");
 
 const TOTAL_SLOTS = parseInt(process.env.REPO_AGENT_TOTAL_SLOTS || "100", 10);
 const DOMAIN = process.env.DOMAIN || "localhost";
-const PROJECT_ROOT = process.env.REPO_AGENT_PROJECT_ROOT || path.resolve(__dirname, "../../.."); // /workspace
-const DC_SCRIPT = process.env.REPO_AGENT_DC_SCRIPT || path.join(PROJECT_ROOT, "docker-compose/scripts/dc.sh");
 
 function slotName(slot) {
+  // Backward-compat helper used by other modules (server admin endpoints +
+  // tests). Pattern giữ nguyên "ttyd-<NNN>" để Firebase data cũ không bị break.
   return `ttyd-${slot}`;
 }
 function containerName(slot) {
@@ -43,6 +47,8 @@ async function ensureSlotPoolInitialized() {
       updates[slot] = {
         slot,
         name: slotName(slot),
+        // serviceName giữ field cũ để backward-compat, dù không còn dùng để
+        // gọi compose.
         serviceName: slotName(slot),
         containerName: containerName(slot),
         host: slotHost(slot),
@@ -138,38 +144,34 @@ async function setSlotStatus(slot, status, patch = {}) {
   await fb.updatePath(`/repoAgent/ttydSlots/${slot}`, updates);
 }
 
-// ── Compose actions ───────────────────────────────────────────────
+// ── Container actions ─────────────────────────────────────────────
+// Trước đây gọi `bash dc.sh --profile repo-ttyd up -d ttyd-XXX`. Giờ gọi
+// docker-runner trực tiếp → đơn giản, dễ debug, không cần resolve
+// HOST_PROJECT_ROOT/--env-file/--profile dài dòng.
 
-function runDc(args, opts = {}) {
-  return new Promise((resolve, reject) => {
-    execFile(
-      "bash",
-      [DC_SCRIPT, ...args],
-      {
-        cwd: PROJECT_ROOT,
-        env: process.env,
-        maxBuffer: 32 * 1024 * 1024,
-        ...opts,
-      },
-      (err, stdout, stderr) => {
-        if (err) {
-          err.stdout = stdout;
-          err.stderr = stderr;
-          return reject(err);
-        }
-        resolve({ stdout, stderr });
-      },
-    );
+async function startSlotContainer(slot) {
+  const runtime = dockerRunner.resolveRuntimeConfig();
+  const hostPaths = dockerRunner.hostPathsForSlot(slot, runtime);
+  return dockerRunner.runSlotContainer(slot, {
+    containerName: containerName(slot),
+    image: runtime.image,
+    network: runtime.network,
+    domain: runtime.domain,
+    tinyauthPort: runtime.tinyauthPort,
+    memory: runtime.memory,
+    memorySwap: runtime.memorySwap,
+    cpus: runtime.cpus,
+    pidsLimit: runtime.pidsLimit,
+    ttydPort: runtime.ttydPort,
+    hostReposRoot: hostPaths.hostReposRoot,
+    hostSlotRoot: hostPaths.hostSlotRoot,
   });
 }
 
-async function startSlotContainer(slot) {
-  // bash docker-compose/scripts/dc.sh --profile repo-ttyd up -d --build --force-recreate ttyd-<slot>
-  return runDc(["--profile", "repo-ttyd", "up", "-d", "--build", "--force-recreate", slotName(slot)]);
-}
-
 async function stopSlotContainer(slot) {
-  return runDc(["--profile", "repo-ttyd", "rm", "-sf", slotName(slot)]).catch(() => null);
+  return dockerRunner.removeSlotContainer(slot, {
+    containerName: containerName(slot),
+  });
 }
 
 // ── Launch flow ───────────────────────────────────────────────────
@@ -256,14 +258,16 @@ async function launch({ repoId, agentProfileId, branch }) {
     await fb.writePath(`/repoAgent/sessions/${sessionId}`, session);
 
     // 5) Start container.
-    await startSlotContainer(slot);
+    const runResult = await startSlotContainer(slot);
 
     await setSlotStatus(slot, "busy", {
       lastSessionId: sessionId,
+      containerId: runResult && runResult.containerId,
     });
     await fb.updatePath(`/repoAgent/sessions/${sessionId}`, {
       status: "running",
       startedAt: nowIso(),
+      containerId: runResult && runResult.containerId,
     });
 
     return { sessionId, slot, url: slotUrl(slot), session };

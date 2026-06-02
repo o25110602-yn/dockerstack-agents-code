@@ -138,16 +138,21 @@ if [ -n "$AGENT_BIN" ] && command -v "$AGENT_BIN" >/dev/null 2>&1; then
 fi
 
 # ── 6) Launch ──────────────────────────────────────────────────────
+# ttyd flags:
+#   -W       writable mode (cho phép input vào terminal)
+#   -m 1     max 1 client per session — slot là tài nguyên 1-1, không cho 2 tab
+#            cùng share session để tránh race khi 2 user đụng cùng REPL.
+#   -p PORT  bind port (caddy upstream qua label sẽ point tới đây)
 case "$START_MODE" in
   agent)
     if [ "$AGENT_FOUND" -eq 1 ]; then
       log "startMode=agent — exec: $AGENT_COMMAND $AGENT_ARGS"
-      exec ttyd -W -p "$TTYD_PORT" bash -lc "cd /workspace && exec $AGENT_COMMAND $AGENT_ARGS"
+      exec ttyd -W -m 1 -p "$TTYD_PORT" bash -lc "cd /workspace && exec $AGENT_COMMAND $AGENT_ARGS"
     else
       log "startMode=agent but '$AGENT_BIN' NOT FOUND — falling back to shell"
       log "  Install the agent CLI via AgentCredential type=script,"
       log "  or build a custom image FROM repo-agent-ttyd:* with the CLI."
-      exec ttyd -W -p "$TTYD_PORT" bash -lc \
+      exec ttyd -W -m 1 -p "$TTYD_PORT" bash -lc \
         "cd /workspace && \
          echo '⚠️  Agent CLI not found: $AGENT_BIN' && \
          echo 'Run command manually after installing it.' && \
@@ -156,7 +161,7 @@ case "$START_MODE" in
     ;;
   shell|*)
     if [ "$AGENT_FOUND" -eq 1 ]; then
-      exec ttyd -W -p "$TTYD_PORT" bash -lc \
+      exec ttyd -W -m 1 -p "$TTYD_PORT" bash -lc \
         "cd /workspace && \
          echo '✅ Repo Agent session ready.' && \
          echo '   Repo : ${REPO_AGENT_REPO_FULL_NAME:-?} @ ${REPO_AGENT_BRANCH:-?}' && \
@@ -164,7 +169,7 @@ case "$START_MODE" in
          echo '   Run  : $AGENT_COMMAND $AGENT_ARGS' && \
          exec bash"
     else
-      exec ttyd -W -p "$TTYD_PORT" bash -lc \
+      exec ttyd -W -m 1 -p "$TTYD_PORT" bash -lc \
         "cd /workspace && \
          echo '✅ Repo Agent session ready (shell mode).' && \
          echo '   Repo : ${REPO_AGENT_REPO_FULL_NAME:-?} @ ${REPO_AGENT_BRANCH:-?}' && \

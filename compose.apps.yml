@@ -1,17 +1,19 @@
 # ================================================================
 #  compose.apps.yml — Application Layer
-#  Repo Agent Launcher UI (replaces previous sample app)
+#  Repo Agent Launcher UI
 #
 #  Subdomain:        ${PROJECT_NAME}.${DOMAIN}
 #  Aux subdomains:   admin.${PROJECT_NAME}.${DOMAIN}  (ko bắt buộc — same app)
-#  TTYD slots:       ttyd001..ttyd100.${DOMAIN}  (xem compose.repo-ttyd.yml)
+#  TTYD slots:       ttyd001..ttyd100.${DOMAIN}  (spawn động bởi manager,
+#                    KHÔNG còn compose service tĩnh — xem
+#                    services/app/src/docker-runner.js)
 #
 #  Required env (xem .env.example):
 #    APP_PORT, HEALTH_PATH, PROJECT_NAME, DOMAIN, CADDY_EMAIL, TINYAUTH_*
 #    REPO_AGENT_FIREBASE_DATABASE_URL
 #    REPO_AGENT_FIREBASE_SERVICE_ACCOUNT_BASE64
 #  Mount /var/run/docker.sock để app có thể spawn ttyd slot containers
-#  qua `bash docker-compose/scripts/dc.sh --profile repo-ttyd up -d ttyd-XXX`.
+#  qua `docker run` (module docker-runner.js).
 # ================================================================
 
 services:
@@ -37,37 +39,45 @@ services:
       REPO_AGENT_MANAGER_PORT: "${REPO_AGENT_MANAGER_PORT:-54100}"
       REPO_AGENT_FIREBASE_DATABASE_URL: "${REPO_AGENT_FIREBASE_DATABASE_URL}"
       REPO_AGENT_FIREBASE_SERVICE_ACCOUNT_BASE64: "${REPO_AGENT_FIREBASE_SERVICE_ACCOUNT_BASE64}"
-      # Where the app finds the project root (so it can call dc.sh) inside
-      # the container — we bind-mount the project root at /workspace.
-      REPO_AGENT_PROJECT_ROOT: "/workspace"
-      REPO_AGENT_DC_SCRIPT: "/workspace/docker-compose/scripts/dc.sh"
-      # HOST_PROJECT_ROOT — đường dẫn THẬT của project trên host runner
-      # (ví dụ: /home/runner/work/<repo>/<repo> trên GitHub Actions).
-      # Cần để khi dc.sh chạy trong container và share /var/run/docker.sock
-      # với host, Compose sẽ truyền `--project-directory` là path host —
-      # nếu không Docker daemon trên host sẽ "path not found" khi build/mount
-      # vì /workspace chỉ tồn tại trong container.
-      # Mặc định lấy từ env runner; nếu rỗng, dc.sh sẽ tự fallback (không an toàn
-      # khi gọi từ trong container — nên phải set ở host trước khi `up`).
-      HOST_PROJECT_ROOT: "${HOST_PROJECT_ROOT:-}"
       REPO_AGENT_REPOS_ROOT: "/repos"
       REPO_AGENT_SLOTS_ROOT: "/slots"
       REPO_AGENT_TOTAL_SLOTS: "${REPO_AGENT_TOTAL_SLOTS:-100}"
+      # ── Dynamic ttyd slot config (passed to docker-runner) ─────
+      # Image dùng cho mỗi slot. Build sẵn ở step deploy:
+      #   docker build -t repo-agent-ttyd:local services/repo-agent-ttyd
+      REPO_AGENT_TTYD_IMAGE: "${REPO_AGENT_TTYD_IMAGE:-repo-agent-ttyd:local}"
+      REPO_AGENT_DOCKER_NETWORK: "${REPO_AGENT_DOCKER_NETWORK:-${PROJECT_NAME:-myapp}_net}"
+      REPO_AGENT_CONTAINER_MEMORY: "${REPO_AGENT_CONTAINER_MEMORY:-1g}"
+      REPO_AGENT_CONTAINER_MEMORY_SWAP: "${REPO_AGENT_CONTAINER_MEMORY_SWAP:-1g}"
+      REPO_AGENT_CONTAINER_CPUS: "${REPO_AGENT_CONTAINER_CPUS:-1}"
+      REPO_AGENT_CONTAINER_PIDS_LIMIT: "${REPO_AGENT_CONTAINER_PIDS_LIMIT:-512}"
+      REPO_AGENT_TTYD_PORT: "${REPO_AGENT_TTYD_PORT:-7681}"
+      # HOST_VOLUMES_ROOT — đường dẫn ABSOLUTE trên HOST tới
+      # ${DOCKER_VOLUMES_ROOT}. Manager dùng path này khi spawn container con
+      # vì `docker run` được thực thi bởi daemon HOST (qua socket mount), không
+      # phải bởi filesystem trong-container của chính manager.
+      # Mặc định = ${HOST_PROJECT_ROOT}/.docker-volumes (resolve trong runner).
+      HOST_PROJECT_ROOT: "${HOST_PROJECT_ROOT:-}"
+      HOST_VOLUMES_ROOT: "${HOST_VOLUMES_ROOT:-}"
+      DOCKER_VOLUMES_ROOT: "${DOCKER_VOLUMES_ROOT:-./.docker-volumes}"
+      PROJECT_NAME: "${PROJECT_NAME:-myapp}"
       DOMAIN: "${DOMAIN}"
+      TINYAUTH_PORT: "${TINYAUTH_PORT:-3000}"
       LOG_DIR: "/app/logs"
     ports:
       - "127.0.0.1:${APP_HOST_PORT:-54100}:${APP_PORT:-54100}"
     volumes:
       - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}/app/logs:/app/logs
       - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}/app/data:/app/data
-      # Repo clones (shared read-only with ttyd slot containers)
+      # Repo clones (shared read-write — manager cần ghi để clone/pull, ttyd
+      # con đọc từ cùng path host). Cùng bind mount → daemon host map vào
+      # cả 2 container về cùng thư mục → tự động consistency.
       - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}/repo-agent/repos:/repos
       # Per-slot folders (runtime.env + injected-files)
       - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}/repo-agent/slots:/slots
-      # Docker socket — needed to spawn/stop ttyd slot containers
+      # Docker socket — needed to spawn/stop ttyd slot containers via
+      # docker-runner.js. Manager process chạy với GID=docker (DOCKER_GID).
       - /var/run/docker.sock:/var/run/docker.sock
-      # Project root mounted read-only so dc.sh + compose files are reachable
-      - .:/workspace:ro
     labels:
       # Public HTTP sites behind Cloudflare Tunnel.
       - "caddy=http://${PROJECT_NAME}.${DOMAIN}, http://main.${DOMAIN}, http://${DOMAIN}, http://${PROJECT_NAME_TAILSCALE}.${TAILSCALE_TAILNET_DOMAIN}"

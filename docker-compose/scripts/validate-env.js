@@ -438,7 +438,22 @@ if ((env.ENABLE_REPO_AGENT || "true") === "true") {
     const n = Number(v);
     return Number.isInteger(n) && n > 0 && n <= 1000 ? null : "must be integer 1..1000";
   });
-  checkOptional("REPO_AGENT_TTYD_IMAGE", "ttyd container image (e.g. tsl0922/ttyd:1.7.7)");
+  checkOptional("REPO_AGENT_TTYD_IMAGE", "ttyd container image (e.g. tsl0922/ttyd:1.7.7 or repo-agent-ttyd:local)");
+  // Refactor 2026-06: dynamic ttyd slot config — read by docker-runner.js
+  // when manager spawns each slot via `docker run`.
+  checkOptional("REPO_AGENT_DOCKER_NETWORK", "docker network name slot containers join (default ${PROJECT_NAME}_net)");
+  checkOptional("REPO_AGENT_CONTAINER_MEMORY", "per-slot memory limit (e.g. 1g, 512m)");
+  checkOptional("REPO_AGENT_CONTAINER_MEMORY_SWAP", "per-slot memory+swap limit (default = REPO_AGENT_CONTAINER_MEMORY)");
+  checkOptional("REPO_AGENT_CONTAINER_CPUS", "per-slot CPU limit (e.g. 1, 0.5)");
+  checkOptional("REPO_AGENT_CONTAINER_PIDS_LIMIT", "per-slot pid limit", (v) => {
+    const n = Number(v);
+    return Number.isInteger(n) && n > 0 ? null : "must be positive integer";
+  });
+  checkOptional("REPO_AGENT_TTYD_PORT", "internal ttyd port (default 7681)", (v) => {
+    const n = Number(v);
+    return Number.isInteger(n) && n > 0 && n < 65536 ? null : "must be 1..65535";
+  });
+  checkOptional("HOST_VOLUMES_ROOT", "absolute HOST path of ${DOCKER_VOLUMES_ROOT} (used when manager runs in-container with docker.sock mount)");
   checkOptional("DOCKER_GID", "GID of Docker socket on host (used as build-arg)", (v) => {
     const n = Number(v);
     return Number.isInteger(n) && n >= 0 ? null : "must be non-negative integer";

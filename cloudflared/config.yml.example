@@ -46,5 +46,19 @@ ingress:
   - hostname: auth.example.com
     service: http://caddy:80
 
+  # ── Wildcard: dynamic Repo Agent ttyd slots ────────────────────
+  # Khi user bấm Launch trên Repo Agent UI, manager spawn container
+  # ttyd với label caddy=http://ttydNNN.${DOMAIN}. Wildcard ingress
+  # này forward MỌI subdomain chưa khớp các rule ở trên về Caddy
+  # → Caddy phân giải tiếp theo container label.
+  #
+  # YÊU CẦU DNS (làm 1 lần trên Cloudflare dashboard):
+  #   *.example.com   CNAME   <tunnel-id>.cfargotunnel.com  (proxied=true)
+  #
+  # Dùng `node scripts/cloudflare-cname-bulk.js create-wildcard` để tạo
+  # tự động (đọc CLOUDFLARED_API_TOKEN + ZONE_ID từ .env).
+  - hostname: "*.example.com"
+    service: http://caddy:80
+
   # ── Catch-all: return 404 for any unlisted hostnames ──────────
   - service: http_status:404

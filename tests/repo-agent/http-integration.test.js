@@ -137,7 +137,9 @@ function makeFirebaseMock() {
   };
 }
 
-// ── execFile mock (stub git/dc.sh) ───────────────────────────────────
+// ── execFile mock (stub git/docker) ──────────────────────────────────
+// Refactor 2026-06: launcher gọi `docker run`/`docker rm` qua docker-runner,
+// không còn `bash dc.sh ...`. Mock cả 2.
 
 const calls = [];
 const origExecFile = child_process.execFile;
@@ -151,6 +153,17 @@ function installExecFileMock() {
         fs.mkdirSync(path.join(target, ".git"), { recursive: true });
         fs.writeFileSync(path.join(target, "README.md"), "# mock\n");
       } catch { /* ignore */ }
+    }
+    if (cmd === "docker") {
+      if (args[0] === "run") {
+        return cb(null, "mockcontainerid0123456789abcdef\n", "");
+      }
+      if (args[0] === "inspect") {
+        const err = new Error("No such container");
+        err.code = 1;
+        return cb(err, "", "");
+      }
+      // rm/version/etc → silent success
     }
     cb(null, "", "");
   };
@@ -489,13 +502,13 @@ async function testSlotsAndLaunchAPI(repo, agentProfileId) {
   check("Sessions.list.hasOne", sess.json && sess.json.items && sess.json.items.length >= 1,
     `count=${sess.json && sess.json.items && sess.json.items.length}`);
 
-  // Verify dc.sh up call recorded
+  // Verify docker run call recorded (replaces dc.sh up call)
   const upCall = calls.find((c) =>
-    c.cmd === "bash" && Array.isArray(c.args) &&
-    c.args.includes("up") && c.args.includes("-d") &&
-    c.args.some((a) => /^ttyd-\d{3}$/.test(a))
+    c.cmd === "docker" && Array.isArray(c.args) &&
+    c.args[0] === "run" && c.args.includes("-d") &&
+    c.args.some((a) => /^repo-agent-ttyd-\d{3}$/.test(a))
   );
-  check("Launch.invokesDcShUp", !!upCall, upCall ? upCall.args.join(" ") : "no dc.sh up call");
+  check("Launch.invokesDockerRun", !!upCall, upCall ? upCall.args.slice(0, 6).join(" ") + "..." : "no docker run call");
 
   // Close session
   const close = await httpReq("POST", `/api/sessions/${lr.json.sessionId}/close`);
@@ -506,10 +519,11 @@ async function testSlotsAndLaunchAPI(repo, agentProfileId) {
   check("CloseSession.slotBackToFree", allFreeAgain, "all slots free after close");
 
   const stopCall = calls.find((c) =>
-    c.cmd === "bash" && Array.isArray(c.args) &&
-    c.args.includes("rm") && c.args.includes("-sf")
+    c.cmd === "docker" && Array.isArray(c.args) &&
+    c.args[0] === "rm" && c.args.includes("-f") &&
+    c.args.some((a) => /^repo-agent-ttyd-\d{3}$/.test(a))
   );
-  check("CloseSession.invokesDcShRm", !!stopCall, stopCall ? stopCall.args.join(" ") : "no dc.sh rm call");
+  check("CloseSession.invokesDockerRm", !!stopCall, stopCall ? stopCall.args.join(" ") : "no docker rm call");
 }
 
 async function testLaunchValidation(repoId, agentProfileId) {

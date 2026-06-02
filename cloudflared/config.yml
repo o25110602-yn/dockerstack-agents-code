@@ -16,4 +16,12 @@ ingress:
     service: http://caddy:80
   - hostname: auth.dockerstackagentscode.dpdns.org
     service: http://caddy:80
+  # ── Wildcard (PHẢI ở cuối, ngay trước catch-all 404) ─────────────
+  # Match mọi subdomain: ttyd001..ttyd100, agent, ... → vào Caddy.
+  # Caddy sẽ phân định tiếp qua label trên container (ví dụ ttyd047
+  # match container có label caddy=http://ttyd047.${DOMAIN}).
+  # DNS yêu cầu (làm 1 lần ở Cloudflare dashboard):
+  #   *.${DOMAIN}  CNAME  <tunnel-id>.cfargotunnel.com  (proxied)
+  - hostname: "*.dockerstackagentscode.dpdns.org"
+    service: http://caddy:80
   - service: http_status:404

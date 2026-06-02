@@ -1,10 +1,35 @@
 # Repo Agent Launcher — Báo cáo kiểm thử & sửa lỗi tổng thể
 
-> Cập nhật: 2026-06-01 (UTC) · Node v22.22.2 · sandbox không có Docker daemon (tất cả test chạy bằng mock + đọc YAML, **không** boot container thật).
+> Cập nhật: 2026-06-02 (UTC) · Node v22.22.2 · sandbox không có Docker daemon (tất cả test chạy bằng mock + đọc YAML, **không** boot container thật).
 
 ---
 
-## TL;DR
+## ⚠️ REFACTOR 2026-06 — Dynamic ttyd slots
+
+**Thay đổi chính:** bỏ `compose.repo-ttyd.yml` (1650 dòng, 100 service tĩnh)
++ script `gen-ttyd-compose.js`. Thay bằng `services/app/src/docker-runner.js`
+spawn từng container slot bằng `docker run` qua docker.sock mount.
+
+Kết quả: 4 test files, **312 PASS / 0 FAIL**:
+
+| File | Tests | Mục đích |
+|---|---|---|
+| `mock-flow.test.js` | 74 | Lifecycle + Firebase + agent creds + buildRunArgs (slot 047, 001, 100) |
+| `http-integration.test.js` | 64 | HTTP routes — payload validation, secret masking, **docker run/rm** invoked |
+| `docker-runner.test.js` | 86 | **NEW** — exhaustive: labels, volumes, env vars, validation, runtime config, host paths |
+| `deploy-smoke.test.js` | 88 | **NEW** — proof-of-deployment: docker socket mount, wildcard ingress, ttyd `-m 1`, `.env.example` vars, package.json scripts, dc.sh cleanup, cname tool CLI |
+
+Chạy: `npm run repo-agent-test:all`
+
+Old test rows (Section 5 below describing `compose.repo-ttyd.yml`,
+`dc.sh up -d ttyd-XXX`, `dc.sh rm -fsv ttyd-XXX`) đã KHÔNG còn áp dụng —
+nay là `docker run -d --name repo-agent-ttyd-XXX ...` và
+`docker rm -f repo-agent-ttyd-XXX`. Vẫn giữ phần history bên dưới làm tham
+chiếu lịch sử.
+
+---
+
+## TL;DR (lịch sử trước refactor)
 
 | Hạng mục | Kết quả |
 |---|---|

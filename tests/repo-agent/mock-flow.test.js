@@ -252,6 +252,9 @@ injectModuleMock(path.join(APP_SRC_DIR, "git-providers.js"), gitProvidersStub);
 
 // Install execFile mock that pretends git operations succeed and
 // physically creates the target dir for clone (so repo-store sees it).
+// Refactor 2026-06: launcher không còn gọi `bash dc.sh ...` để start ttyd —
+// nó dùng `docker run`/`docker rm` qua docker-runner.js. Mock cả 2: git +
+// docker để tránh gọi daemon thật.
 installExecFileMock({
   git: ({ args }) => {
     // git clone --depth 1 --branch main <authedUrl> <target>
@@ -263,6 +266,22 @@ installExecFileMock({
     return "";
   },
   bash: () => "",
+  docker: ({ args }) => {
+    // `docker run -d ... image` → trả container ID giả
+    if (args[0] === "run") {
+      return "mockcontainerid0123456789abcdef\n";
+    }
+    // `docker rm -f ...` → no-op
+    // `docker inspect ...` → simulate "not found" (ok cho test path negative)
+    if (args[0] === "inspect") {
+      // Throw để tests hiện tại không phụ thuộc inspect; docker-runner.js
+      // tự catch và trả {exists:false}.
+      const err = new Error("No such container");
+      err.code = 1;
+      return err;
+    }
+    return "";
+  },
 });
 
 // Now safe to require app modules (will use mocks above).
@@ -272,60 +291,172 @@ const repoStore = require(path.join(APP_SRC_DIR, "repo-store.js"));
 const config = require(path.join(APP_SRC_DIR, "repo-agent-config.js"));
 
 // ────────────────────────────────────────────────────────────────────
-// 2.6  Generated Compose checks
+// 2.6  Docker run args (replaces old "Generated Compose" tests)
+//
+// Refactor 2026-06: compose.repo-ttyd.yml đã xóa. Slot không còn là service
+// compose tĩnh — manager spawn động qua docker-runner.buildRunArgs().
+// Test này verify args truyền cho `docker run` đúng pattern URL + labels +
+// resource limits.
 // ────────────────────────────────────────────────────────────────────
 
-(function testCompose() {
-  section("2.6 — Generated Compose");
-  const composePath = path.join(
+(function testDockerRunArgs() {
+  section("2.6 — Docker run args (dynamic ttyd slot)");
+  const dockerRunner = require(path.join(APP_SRC_DIR, "docker-runner.js"));
+
+  const args = dockerRunner.buildRunArgs({
+    slot: "047",
+    containerName: "repo-agent-ttyd-047",
+    image: "repo-agent-ttyd:local",
+    network: "myapp_net",
+    domain: "example.com",
+    tinyauthPort: "3000",
+    hostReposRoot: "/data/host/repo-agent/repos",
+    hostSlotRoot: "/data/host/repo-agent/slots/047",
+    memory: "1g",
+    memorySwap: "1g",
+    cpus: "1",
+    pidsLimit: "512",
+    ttydPort: "7681",
+  });
+
+  // First arg must be `run`.
+  expectEq("DockerRun.firstArgIsRun", args[0], "run");
+
+  // Detached mode + name + restart=no
+  check("DockerRun.detached", args.includes("-d"), "-d present");
+  check(
+    "DockerRun.containerName",
+    args.includes("repo-agent-ttyd-047"),
+    "container name present"
+  );
+  const restartIdx = args.indexOf("--restart");
+  check(
+    "DockerRun.restartNo",
+    restartIdx >= 0 && args[restartIdx + 1] === "no",
+    "restart: no"
+  );
+
+  // Caddy labels — same shape as old compose.repo-ttyd.yml
+  const labels = args
+    .map((a, i) => (a === "--label" ? args[i + 1] : null))
+    .filter(Boolean);
+  check(
+    "DockerRun.caddyLabel",
+    labels.includes("caddy=http://ttyd047.example.com"),
+    `labels=${JSON.stringify(labels)}`
+  );
+  check(
+    "DockerRun.caddyForwardAuth",
+    labels.includes("caddy.forward_auth=tinyauth:3000"),
+    "forward_auth label"
+  );
+  check(
+    "DockerRun.caddyReverseProxy",
+    labels.includes("caddy.reverse_proxy={{upstreams 7681}}"),
+    "reverse_proxy with upstream port"
+  );
+  check(
+    "DockerRun.metadataLabel",
+    labels.includes("dockerstack.role=repo-agent-ttyd-slot") &&
+      labels.includes("dockerstack.slot=047"),
+    "dockerstack metadata labels"
+  );
+
+  // Volume mounts — host paths (resolved by manager) into /repos and /slot.
+  const vols = args
+    .map((a, i) => (a === "-v" ? args[i + 1] : null))
+    .filter(Boolean);
+  check(
+    "DockerRun.repoVolumeRW",
+    vols.includes("/data/host/repo-agent/repos:/repos"),
+    `vols=${JSON.stringify(vols)}`
+  );
+  check(
+    "DockerRun.slotVolume",
+    vols.includes("/data/host/repo-agent/slots/047:/slot"),
+    "slot dir mount"
+  );
+  // KHÔNG được có `:ro` cho repo mount (manager + ttyd cần writable)
+  const hasRoMount = vols.some((v) => v.endsWith(":ro"));
+  check("DockerRun.noRoMount", !hasRoMount, "no read-only mounts");
+
+  // Network + resource limits
+  const netIdx = args.indexOf("--network");
+  expectEq(
+    "DockerRun.network",
+    netIdx >= 0 ? args[netIdx + 1] : null,
+    "myapp_net"
+  );
+  const memIdx = args.indexOf("--memory");
+  expectEq(
+    "DockerRun.memoryLimit",
+    memIdx >= 0 ? args[memIdx + 1] : null,
+    "1g"
+  );
+  const pidsIdx = args.indexOf("--pids-limit");
+  expectEq(
+    "DockerRun.pidsLimit",
+    pidsIdx >= 0 ? args[pidsIdx + 1] : null,
+    "512"
+  );
+
+  // Image must be the LAST arg (positional).
+  expectEq("DockerRun.imageIsLast", args[args.length - 1], "repo-agent-ttyd:local");
+
+  // Validate slot 001 + 100 boundary URLs match launcher's slotHost pattern.
+  const a1 = dockerRunner.buildRunArgs({
+    slot: "001",
+    containerName: "repo-agent-ttyd-001",
+    image: "x",
+    network: "n",
+    domain: "test.local",
+    hostReposRoot: "/r",
+    hostSlotRoot: "/s",
+  });
+  const lab1 = a1
+    .map((a, i) => (a === "--label" ? a1[i + 1] : null))
+    .filter(Boolean);
+  check(
+    "DockerRun.slot001Hostname",
+    lab1.includes("caddy=http://ttyd001.test.local"),
+    "ttyd001"
+  );
+  const a100 = dockerRunner.buildRunArgs({
+    slot: "100",
+    containerName: "repo-agent-ttyd-100",
+    image: "x",
+    network: "n",
+    domain: "test.local",
+    hostReposRoot: "/r",
+    hostSlotRoot: "/s",
+  });
+  const lab100 = a100
+    .map((a, i) => (a === "--label" ? a100[i + 1] : null))
+    .filter(Boolean);
+  check(
+    "DockerRun.slot100Hostname",
+    lab100.includes("caddy=http://ttyd100.test.local"),
+    "ttyd100"
+  );
+
+  // Validate input — buildRunArgs phải throw nếu thiếu field
+  let threw = false;
+  try {
+    dockerRunner.buildRunArgs({ slot: "001" });
+  } catch {
+    threw = true;
+  }
+  check("DockerRun.validatesRequiredFields", threw, "throws on missing image/network");
+
+  // Confirm xóa compose.repo-ttyd.yml — file không được tồn tại nữa.
+  const oldComposePath = path.join(
     PROJECT_ROOT,
     "docker-compose/compose.repo-ttyd.yml"
   );
-  const text = fs.readFileSync(composePath, "utf8");
-
-  // Generate 100 ttyd services
-  const serviceMatches = text.match(/^  ttyd-\d{3}:/gm) || [];
-  expectEq("Compose.generate100Slots", serviceMatches.length, 100);
-
-  // No ":ro" anywhere on a repo mount
-  const roCount = (text.match(/:ro\b/g) || []).length;
   check(
-    "Compose.repoMountWritable",
-    roCount === 0,
-    `:ro count = ${roCount} (expected 0)`
-  );
-
-  // Mounted to /repos exactly
-  const repoMounts = (text.match(/:\/repos\b/gm) || []).length;
-  expectEq("Compose.repoMountPathRepos", repoMounts, 100);
-
-  // restart "no" (in anchor — applied to every service)
-  const restartNo = /\n\s*restart:\s*"no"\s*\n/.test(text);
-  check("Compose.restartNo", restartNo, "x-ttyd-base has restart: \"no\"");
-
-  // No host port published
-  const hasHostPorts = /^\s*-\s*['"]?\d+:\d+['"]?\s*$/m.test(text);
-  check(
-    "Compose.noHostPorts",
-    !hasHostPorts,
-    "no host:container port mapping in compose"
-  );
-
-  // Caddy labels for ttyd001 .. ttyd100
-  const labels001 = /caddy=http:\/\/ttyd001\.\$\{DOMAIN\}/.test(text);
-  const labels100 = /caddy=http:\/\/ttyd100\.\$\{DOMAIN\}/.test(text);
-  check(
-    "Compose.subdomainLabels",
-    labels001 && labels100,
-    `ttyd001=${labels001}, ttyd100=${labels100}`
-  );
-
-  // Image default points to repo-agent-ttyd:local
-  const imageDefault = /image:\s*\$\{REPO_AGENT_TTYD_IMAGE:-repo-agent-ttyd:local\}/.test(text);
-  check(
-    "Compose.imageDefault",
-    imageDefault,
-    "${REPO_AGENT_TTYD_IMAGE:-repo-agent-ttyd:local}"
+    "Refactor.oldComposeRemoved",
+    !fs.existsSync(oldComposePath),
+    `compose.repo-ttyd.yml should be deleted, found at: ${oldComposePath}`
   );
 })();
 
@@ -839,20 +970,21 @@ async function testLaunchAndClose() {
     `repo-store.js declares REPOS_ROOT default = "/repos"`
   );
 
-  // Verify dc.sh was invoked to start the slot container (Phase 2.3 → Ttyd.startService)
-  const dcCall = calls.find(
+  // Verify docker run was invoked to start the slot container (Phase 2.3 → Ttyd.startService)
+  // Refactor 2026-06: thay vì `bash dc.sh ... up -d ttyd-XXX` (compose), giờ
+  // gọi thẳng `docker run -d --name repo-agent-ttyd-XXX ...`.
+  const dockerRunCall = calls.find(
     (c) =>
-      c.cmd === "bash" &&
+      c.cmd === "docker" &&
       Array.isArray(c.args) &&
-      c.args.some((a) => /dc\.sh$/.test(a)) &&
-      c.args.includes("up") &&
+      c.args[0] === "run" &&
       c.args.includes("-d") &&
-      c.args.some((a) => /^ttyd-\d{3}$/.test(a))
+      c.args.some((a) => /^repo-agent-ttyd-\d{3}$/.test(a))
   );
   check(
     "Ttyd.startService",
-    !!dcCall,
-    dcCall ? dcCall.args.join(" ") : "no dc.sh up call recorded"
+    !!dockerRunCall,
+    dockerRunCall ? dockerRunCall.args.slice(0, 6).join(" ") + "..." : "no docker run call recorded"
   );
 
   // Verify agent credential file was materialized into slot
@@ -904,18 +1036,19 @@ async function testLaunchAndClose() {
   );
   pass("Slot.transition.stoppingToFree", "slot reset to free with sessionId cleared");
 
-  // dc.sh rm -sf was called (stopContainer)
+  // dc.sh rm -sf was called (stopContainer) → bây giờ là `docker rm -f`
   const stopCall = calls.find(
     (c) =>
-      c.cmd === "bash" &&
+      c.cmd === "docker" &&
       Array.isArray(c.args) &&
-      c.args.includes("rm") &&
-      c.args.includes("-sf")
+      c.args[0] === "rm" &&
+      c.args.includes("-f") &&
+      c.args.some((a) => /^repo-agent-ttyd-\d{3}$/.test(a))
   );
   check(
     "Session.close.stopContainer",
     !!stopCall,
-    stopCall ? stopCall.args.join(" ") : "no dc.sh rm call recorded"
+    stopCall ? stopCall.args.join(" ") : "no docker rm call recorded"
   );
 
   // injected-files cleared
@@ -940,10 +1073,10 @@ async function testLaunchAndClose() {
   );
   expectEq("Session.close.sessionClosed", sessAfter.status, "closed");
 
-  // removeContainer = stopCall covers this (dc.sh rm -sf removes container)
+  // removeContainer = stopCall covers this (`docker rm -f` removes container)
   pass(
     "Session.close.removeContainer",
-    "dc.sh rm -sf both stops AND removes container"
+    "docker rm -f both stops AND removes container"
   );
 }
 

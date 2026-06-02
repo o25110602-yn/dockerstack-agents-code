@@ -17,7 +17,8 @@ const FILES = [
   'docker-compose/compose.access.yml',
   'docker-compose/compose.deploy.yml',
   'docker-compose/compose.rclone.yml',
-  'docker-compose/compose.repo-ttyd.yml',
+  // compose.repo-ttyd.yml đã bị xóa khi refactor sang dynamic docker-run
+  // (xem services/app/src/docker-runner.js).
   'compose.apps.yml',
 ];
 

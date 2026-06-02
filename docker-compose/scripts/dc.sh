@@ -436,10 +436,11 @@ if [ "${ENABLE_RCLONE:-false}" = "true" ]; then
   PROFILE_ARGS+=(--profile rclone)
 fi
 
-# Repo Agent Launcher: launcher app chạy mặc định khi ENABLE_REPO_AGENT=true,
-# nhưng các ttyd slot KHÔNG start tự động — chúng chỉ start khi user bấm
-# Launch trên UI (qua `dc.sh --profile repo-ttyd up -d ttyd-XXX`).
-# Do đó ở đây ta KHÔNG add `--profile repo-ttyd` vào PROFILE_ARGS mặc định.
+# Repo Agent Launcher: launcher app (services/app) chạy trong compose.apps.yml
+# với mặc định ENABLE_REPO_AGENT=true. Các ttyd slot KHÔNG còn là compose
+# service tĩnh — chúng được manager spawn động bằng `docker run` (qua
+# /var/run/docker.sock mount) khi user bấm Launch trên UI. Vì vậy ở đây
+# không add `--profile repo-ttyd` (profile cũ đã bị bỏ cùng compose.repo-ttyd.yml).
 
 if [ "${ENABLE_TAILSCALE:-false}" = "true" ] && should_render_tailscale_serve "${1:-}"; then
   render_tailscale_serve_config
@@ -455,7 +456,11 @@ FILES=(
   -f "$ROOT_DIR/docker-compose/compose.access.yml"
   -f "$ROOT_DIR/docker-compose/compose.deploy.yml"
   -f "$ROOT_DIR/docker-compose/compose.rclone.yml"
-  -f "$ROOT_DIR/docker-compose/compose.repo-ttyd.yml"
+  # NOTE: compose.repo-ttyd.yml đã bị xóa (refactor 2026-06).
+  # 100 ttyd slot không còn là compose service tĩnh — manager (services/app)
+  # spawn từng container động bằng `docker run` qua docker-runner.js. Lý do:
+  # đơn giản hóa lifecycle, bỏ HOST_PROJECT_ROOT phức tạp khi gọi compose
+  # in-container, dễ scale (1..N slot) mà không phải sinh lại YAML.
   -f "$ROOT_DIR/compose.apps.yml"
 )
 
