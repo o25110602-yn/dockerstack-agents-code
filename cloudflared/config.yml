@@ -1,50 +1,19 @@
-# ================================================================
-#  cloudflared/config.yml.example
-#  Template for Cloudflare Tunnel ingress config.
-#
-#  To create manually:
-#    1. Copy this file to cloudflared/config.yml
-#    2. Fill in TUNNEL_ID (from: cloudflared tunnel list)
-#    3. Update hostnames to match your .env / DNS plan
-#    4. Remove any entries for services you keep disabled
-#    5. Add matching DNS records in Cloudflare dashboard
-# ================================================================
-
-# Get from: cloudflared tunnel list  OR  Cloudflare Zero Trust dashboard
-tunnel: <YOUR-TUNNEL-ID>
+tunnel: 9d241926-7a36-441a-bfac-2ff960946ea9
 credentials-file: /etc/cloudflared/credentials.json
 
 ingress:
-  # ── Main application ────────────────────────────────────────────
-  # Default .env example uses: main.${DOMAIN}
-  - hostname: main.example.com
+  - hostname: dockerstackagentscode.dpdns.org
     service: http://caddy:80
-
-  # ── Dozzle: real-time log viewer ───────────────────────────────
-  # Enabled when ENABLE_DOZZLE=true
-  - hostname: dozzle.example.com
+  - hostname: main.dockerstackagentscode.dpdns.org
     service: http://caddy:80
-
-  # ── Filebrowser: log file manager ─────────────────────────────
-  # Enabled when ENABLE_FILEBROWSER=true
-  - hostname: files.example.com
+  - hostname: ttyd.dockerstackagentscode.dpdns.org
     service: http://caddy:80
-
-  # ── Deploy Code: optional self-deploy UI/API ───────────────────
-  # Enabled when DOCKER_DEPLOY_CODE_ENABLED=true
-  - hostname: deploy.example.com
+  - hostname: dozzle.dockerstackagentscode.dpdns.org
     service: http://caddy:80
-
-  # ── WebSSH: browser terminal ──────────────────────────────────
-  # Enabled when ENABLE_WEBSSH=true
-  # ⚠️  Protect with Cloudflare Access or Tailscale for production!
-  - hostname: ttyd.example.com
+  - hostname: files.dockerstackagentscode.dpdns.org
     service: http://caddy:80
-
-  # ── Tinyauth: authentication portal ────────────────────────────
-  # Always required when using Tinyauth forward_auth
-  - hostname: auth.example.com
+  - hostname: deploy.dockerstackagentscode.dpdns.org
     service: http://caddy:80
-
-  # ── Catch-all: return 404 for any unlisted hostnames ──────────
+  - hostname: auth.dockerstackagentscode.dpdns.org
+    service: http://caddy:80
   - service: http_status:404
