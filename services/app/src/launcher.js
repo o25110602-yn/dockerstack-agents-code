@@ -63,31 +63,73 @@ async function ensureSlotPoolInitialized() {
 async function reserveFreeSlot(sessionId) {
   await ensureSlotPoolInitialized();
 
-  for (let i = 1; i <= TOTAL_SLOTS; i += 1) {
-    const slot = pad3(i);
+  // Random hóa thứ tự slot để giảm contention khi nhiều user launch đồng thời.
+  const order = [];
+  for (let i = 1; i <= TOTAL_SLOTS; i += 1) order.push(pad3(i));
+  for (let i = order.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+
+  const failures = []; // chi tiết để debug
+  let freeSeen = 0;
+
+  for (const slot of order) {
     const ref = fb.db().ref(`/repoAgent/ttydSlots/${slot}`);
 
     // Pre-fetch để warm cache — tránh transaction abort do cur===null lần đầu
-    const snap = await ref.once("value");
-    const cur0 = snap.val();
-    if (!cur0 || cur0.status !== "free") continue;
+    let cur0;
+    try {
+      const snap = await ref.once("value");
+      cur0 = snap.val();
+    } catch (err) {
+      failures.push({ slot, reason: "pre-read-failed", err: String(err.message || err) });
+      continue;
+    }
+    if (!cur0) {
+      failures.push({ slot, reason: "missing-in-db" });
+      continue;
+    }
+    if (cur0.status !== "free") {
+      // không log spam — chỉ slot busy là chuyện bình thường
+      continue;
+    }
+    freeSeen += 1;
 
-    // Atomic CAS
-    const tx = await ref.transaction((cur) => {
-      if (!cur || cur.status !== "free") return; // abort: race
-      cur.status = "reserved";
-      cur.sessionId = sessionId;
-      cur.updatedAt = nowIso();
-      return cur;
-    });
+    // Atomic CAS — applyLocally:false để callback luôn nhận server-truth.
+    let tx;
+    try {
+      tx = await ref.transaction((cur) => {
+        if (!cur || cur.status !== "free") return; // abort: race
+        cur.status = "reserved";
+        cur.sessionId = sessionId;
+        cur.updatedAt = nowIso();
+        return cur;
+      }, undefined, false);
+    } catch (err) {
+      failures.push({ slot, reason: "tx-threw", err: String(err.message || err) });
+      continue;
+    }
 
-    if (tx.committed && tx.snapshot && tx.snapshot.val()) {
+    if (tx && tx.committed && tx.snapshot && tx.snapshot.val()) {
       return tx.snapshot.val();
     }
+    failures.push({
+      slot,
+      reason: "tx-not-committed",
+      committed: !!(tx && tx.committed),
+    });
     // race lost → thử slot tiếp theo
   }
 
-  throw new Error("No free TTYD slot available");
+  // Build error rõ ràng để debug
+  const detail = JSON.stringify({
+    totalSlots: TOTAL_SLOTS,
+    freeSeen,
+    failureCount: failures.length,
+    sample: failures.slice(0, 5),
+  });
+  throw new Error(`No free TTYD slot available (${detail})`);
 }
 
 async function setSlotStatus(slot, status, patch = {}) {

@@ -565,6 +565,64 @@ app.get(
   })
 );
 
+// Admin: force-reset 1 slot về free + clear session + best-effort stop container.
+// Dùng khi slot mồ côi (container đã chết nhưng status vẫn busy/reserved).
+//   POST /api/admin/slots/:slot/reset
+app.post(
+  "/api/admin/slots/:slot/reset",
+  wrap(async (req, res) => {
+    const slot = String(req.params.slot || "").padStart(3, "0");
+    const cur = await fb.readPath(`/repoAgent/ttydSlots/${slot}`);
+    if (!cur) throw new Error(`Slot not found: ${slot}`);
+
+    // Best-effort: stop container nếu đang chạy.
+    await launcher.stopSlotContainer(slot).catch(() => null);
+
+    // Mark associated session as forced-closed.
+    if (cur.sessionId) {
+      await fb
+        .updatePath(`/repoAgent/sessions/${cur.sessionId}`, {
+          status: "forced-closed",
+          closedAt: nowIso(),
+          closedReason: "admin-reset",
+        })
+        .catch(() => null);
+    }
+
+    await launcher.setSlotStatus(slot, "free", { sessionId: null });
+    log("info", "admin-reset-slot", { slot, prevStatus: cur.status });
+    res.json({ ok: true, slot, prevStatus: cur.status });
+  })
+);
+
+// Admin: bulk reset tất cả slot không phải "busy" trong một lần (xóa rác mồ côi).
+//   POST /api/admin/slots/reset-stale
+app.post(
+  "/api/admin/slots/reset-stale",
+  wrap(async (_req, res) => {
+    const all = (await fb.readPath("/repoAgent/ttydSlots")) || {};
+    const reset = [];
+    for (const [slot, cur] of Object.entries(all)) {
+      if (!cur || cur.status === "free" || cur.status === "busy") continue;
+      // Reset tất cả trạng thái trung gian: reserved/cloning/starting/stopping/error
+      await launcher.stopSlotContainer(slot).catch(() => null);
+      if (cur.sessionId) {
+        await fb
+          .updatePath(`/repoAgent/sessions/${cur.sessionId}`, {
+            status: "forced-closed",
+            closedAt: nowIso(),
+            closedReason: "admin-reset-stale",
+          })
+          .catch(() => null);
+      }
+      await launcher.setSlotStatus(slot, "free", { sessionId: null });
+      reset.push({ slot, prevStatus: cur.status });
+    }
+    log("info", "admin-reset-stale", { count: reset.length });
+    res.json({ ok: true, count: reset.length, items: reset });
+  })
+);
+
 // ── Sessions / Launch ──────────────────────────────────────────────
 
 app.post(

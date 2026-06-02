@@ -84,8 +84,8 @@ services:
         - "CMD"
         - "sh"
         - "-c"
-        - "wget -qO- http://localhost:${APP_PORT:-54100}${HEALTH_PATH:-/api/health} || exit 1"
+        - "wget -qO- http://localhost:${APP_PORT:-54100}/api/health/ready || exit 1"
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 30s
