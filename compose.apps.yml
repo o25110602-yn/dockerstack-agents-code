@@ -18,6 +18,7 @@ services:
   app:
     container_name: "main-app"
     image: "${PROJECT_NAME:-myapp}-app:local"
+    user: "0:0"
     build:
       context: ./services/app
       dockerfile: Dockerfile

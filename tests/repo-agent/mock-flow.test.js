@@ -553,7 +553,8 @@ const config = require(path.join(APP_SRC_DIR, "repo-agent-config.js"));
   const stat = fs.statSync(copiedTarget);
   // stat.mode includes file type bits; mask to permission bits only
   const permBits = (stat.mode & 0o777).toString(8).padStart(4, "0");
-  expectEq("AgentCredential.modeIs0600", permBits, "0600");
+  const expectedPerm = process.platform === "win32" ? "0666" : "0600";
+  expectEq("AgentCredential.modeIs0600", permBits, expectedPerm);
 
   // Repo path validation logic (mirror of entrypoint validate_repo_path)
   function validateRepoPath(p) {
@@ -814,7 +815,7 @@ async function testLaunchAndClose() {
   check(
     "RuntimeEnv.repoPathStartsWithRepos",
     new RegExp(
-      `^REPO_AGENT_REPO_PATH=${REPOS_ROOT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/`,
+      `^REPO_AGENT_REPO_PATH=${REPOS_ROOT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[/\\\\/]`,
       "m"
     ).test(envText),
     // In production the REPOS_ROOT is "/repos" (set by compose mount).
