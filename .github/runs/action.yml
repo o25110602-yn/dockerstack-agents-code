@@ -33,6 +33,22 @@ runs:
     # HOST_PROJECT_ROOT phải là path TUYỆT ĐỐI của project trên host runner —
     # cần để main-app (chạy trong container, share /var/run/docker.sock) có thể
     # spawn ttyd slot containers qua dc.sh mà không bị "path not found".
+
+    # Build repo-agent-ttyd:local trước — image này không có trong compose file
+    # (spawn động bởi docker-runner.js), nên dc.sh --build không tự build nó.
+    - name: Build repo-agent-ttyd image (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        docker build -t repo-agent-ttyd:local ./services/repo-agent-ttyd
+
+    - name: Build repo-agent-ttyd image (Windows/WSL2)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $wsl = $env:WSL_WORKSPACE
+        wsl -d Ubuntu -- bash -c "cd '$wsl' && docker build -t repo-agent-ttyd:local ./services/repo-agent-ttyd"
+
     - name: Build & start services (Linux)
       if: runner.os == 'Linux'
       shell: bash
