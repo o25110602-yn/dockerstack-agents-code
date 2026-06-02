@@ -80,14 +80,14 @@ Replace only the application layer while preserving Core/Ops/Access/Auth logic.
 
 ### 4a) Litestream
 
-| Symptom | Root Cause | Fix |
-|---------|------------|-----|
-| `INIT_MODE=true but database file already exists` — container exits with error | DB exists but `LITESTREAM_INIT_MODE` still `true` | Set `LITESTREAM_INIT_MODE=false` |
-| App blocked at startup, log: `Replica not found` | `LITESTREAM_INIT_MODE=false` + no S3 replica yet | Set `LITESTREAM_INIT_MODE=true` for first deploy only |
-| Litestream running but app DB not replicated silently | `LITESTREAM_REPLICATE_DBS` doesn't include `app` | Set `LITESTREAM_REPLICATE_DBS=tinyauth,app` |
-| App DB not restored on fresh deploy | Data volume missing in `litestream-restore` service | Add volume to BOTH `litestream-restore` AND `litestream` in `compose.auth.yml` |
-| Restore succeeds but app cannot open DB | Path mismatch between `litestream.yml` and app's actual DB path | Match `path:` in `litestream.yml` exactly to the app's SQLite file path |
-| `litestream-restore` succeeds but app crashes on DB open | Filename in `LITESTREAM_APP_DB_FILE` differs from what the app creates | Align `LITESTREAM_APP_DB_FILE` to the actual filename the app uses |
+| Symptom                                                                        | Root Cause                                                             | Fix                                                                            |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `INIT_MODE=true but database file already exists` — container exits with error | DB exists but `LITESTREAM_INIT_MODE` still `true`                      | Set `LITESTREAM_INIT_MODE=false`                                               |
+| App blocked at startup, log: `Replica not found`                               | `LITESTREAM_INIT_MODE=false` + no S3 replica yet                       | Set `LITESTREAM_INIT_MODE=true` for first deploy only                          |
+| Litestream running but app DB not replicated silently                          | `LITESTREAM_REPLICATE_DBS` doesn't include `app`                       | Set `LITESTREAM_REPLICATE_DBS=tinyauth,app`                                    |
+| App DB not restored on fresh deploy                                            | Data volume missing in `litestream-restore` service                    | Add volume to BOTH `litestream-restore` AND `litestream` in `compose.auth.yml` |
+| Restore succeeds but app cannot open DB                                        | Path mismatch between `litestream.yml` and app's actual DB path        | Match `path:` in `litestream.yml` exactly to the app's SQLite file path        |
+| `litestream-restore` succeeds but app crashes on DB open                       | Filename in `LITESTREAM_APP_DB_FILE` differs from what the app creates | Align `LITESTREAM_APP_DB_FILE` to the actual filename the app uses             |
 
 **Checklist when adding SQLite to app (do ALL before declaring done):**
 
@@ -100,13 +100,13 @@ Replace only the application layer while preserving Core/Ops/Access/Auth logic.
 
 ### 4b) Rclone
 
-| Symptom | Root Cause | Fix |
-|---------|------------|-----|
-| Container exits immediately: `config file not found at /config/rclone/rclone.conf` | `rclone.conf` not created from example | `cp services/rclone/rclone.conf.example services/rclone/rclone.conf` then fill credentials |
-| Sync loop runs but no files transferred | `RCLONE_DRY_RUN=true` | Set `RCLONE_DRY_RUN=false` after verifying with dry-run |
-| `Failed to find remote "<name>"` error in logs | Remote name in `RCLONE_REMOTE_TARGET` doesn't match `[section]` in `rclone.conf` | Use the exact section name, e.g. `remote_store:bucket/path` |
-| App data not being backed up by rclone | App data volume is outside `${DOCKER_VOLUMES_ROOT}` | Keep all app volumes under `${DOCKER_VOLUMES_ROOT}` — rclone only syncs that directory |
-| Authentication / permission error from S3/R2 | Wrong `access_key_id` or `secret_access_key` in `rclone.conf` | Regenerate keys in provider console and update `rclone.conf` |
+| Symptom                                                                            | Root Cause                                                                       | Fix                                                                                        |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Container exits immediately: `config file not found at /config/rclone/rclone.conf` | `rclone.conf` not created from example                                           | `cp services/rclone/rclone.conf.example services/rclone/rclone.conf` then fill credentials |
+| Sync loop runs but no files transferred                                            | `RCLONE_DRY_RUN=true`                                                            | Set `RCLONE_DRY_RUN=false` after verifying with dry-run                                    |
+| `Failed to find remote "<name>"` error in logs                                     | Remote name in `RCLONE_REMOTE_TARGET` doesn't match `[section]` in `rclone.conf` | Use the exact section name, e.g. `remote_store:bucket/path`                                |
+| App data not being backed up by rclone                                             | App data volume is outside `${DOCKER_VOLUMES_ROOT}`                              | Keep all app volumes under `${DOCKER_VOLUMES_ROOT}` — rclone only syncs that directory     |
+| Authentication / permission error from S3/R2                                       | Wrong `access_key_id` or `secret_access_key` in `rclone.conf`                    | Regenerate keys in provider console and update `rclone.conf`                               |
 
 **Rclone setup order (first time):**
 
@@ -118,25 +118,25 @@ Replace only the application layer while preserving Core/Ops/Access/Auth logic.
 
 ### 4c) Tinyauth
 
-| Symptom | Root Cause | Fix |
-|---------|------------|-----|
-| All requests return 401 even with correct password | `TINYAUTH_TRUSTED_PROXIES` doesn't include Docker network ranges | Keep default: `127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` |
-| Cookie rejected on every request (login redirect loop) | `TINYAUTH_COOKIE_SECURE=true` but traffic is plain HTTP | Use HTTPS (Cloudflare tunnel / Tailscale) or set `false` for local HTTP testing only |
-| OAuth redirect fails or goes to wrong URL | `TINYAUTH_APP_URL` doesn't match actual tinyauth public URL | Set to the exact URL (e.g. `https://auth.myapp.dpdns.org`), no trailing slash |
-| App starts before tinyauth is ready (race condition / 503) | Missing `depends_on: tinyauth: condition: service_healthy` in app service | Add to app service in `compose.apps.yml` |
-| Forward auth passes but user headers are empty in app | `copy_headers` label missing or misspelled | Verify: `caddy.forward_auth.copy_headers=Remote-User Remote-Email Remote-Name Remote-Groups` |
-| Login accepted but cookie immediately rejected | bcrypt hash uses `$` instead of `$$` in `.env` | Use `$$2a$$10$$...` in `.env` file — dc.sh unescapes to `$` at runtime |
-| Tinyauth healthcheck fails at startup | DB path wrong or volume not mounted | Verify `TINYAUTH_DB_FILE` and that `${DOCKER_VOLUMES_ROOT}/tinyauth` is mounted at `/data` |
+| Symptom                                                    | Root Cause                                                                | Fix                                                                                          |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| All requests return 401 even with correct password         | `TINYAUTH_TRUSTED_PROXIES` doesn't include Docker network ranges          | Keep default: `127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`                         |
+| Cookie rejected on every request (login redirect loop)     | `TINYAUTH_COOKIE_SECURE=true` but traffic is plain HTTP                   | Use HTTPS (Cloudflare tunnel / Tailscale) or set `false` for local HTTP testing only         |
+| OAuth redirect fails or goes to wrong URL                  | `TINYAUTH_APP_URL` doesn't match actual tinyauth public URL               | Set to the exact URL (e.g. `https://auth.myapp.dpdns.org`), no trailing slash                |
+| App starts before tinyauth is ready (race condition / 503) | Missing `depends_on: tinyauth: condition: service_healthy` in app service | Add to app service in `compose.apps.yml`                                                     |
+| Forward auth passes but user headers are empty in app      | `copy_headers` label missing or misspelled                                | Verify: `caddy.forward_auth.copy_headers=Remote-User Remote-Email Remote-Name Remote-Groups` |
+| Login accepted but cookie immediately rejected             | bcrypt hash uses `$` instead of `$$` in `.env`                            | Use `$$2a$$10$$...` in `.env` file — dc.sh unescapes to `$` at runtime                       |
+| Tinyauth healthcheck fails at startup                      | DB path wrong or volume not mounted                                       | Verify `TINYAUTH_DB_FILE` and that `${DOCKER_VOLUMES_ROOT}/tinyauth` is mounted at `/data`   |
 
 ### 4d) Caddy Labels
 
-| Symptom | Root Cause | Fix |
-|---------|------------|-----|
-| Second virtual-host on service not routed | Used `caddy2=` instead of `caddy_1=` | Use `caddy_1`, `caddy_2`, `caddy_3`... (underscore + number, not number alone) |
-| SSE / WebSocket streaming breaks or hangs | Missing `flush_interval=-1` | Add `caddy.reverse_proxy.flush_interval=-1` for streaming/SSE apps |
-| Service accessible without auth | `forward_auth` labels missing or incomplete | Verify all four `forward_auth` labels present on every protected service |
-| Port mismatch / connection refused in proxy | Hard-coded port in `{{upstreams}}` | Always use `{{upstreams ${APP_PORT:-3000}}}` — never hard-code |
-| Caddy logs `no upstream` | Service not on `app_net` | Add `networks: [app_net]` to the service |
+| Symptom                                     | Root Cause                                  | Fix                                                                            |
+| ------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------ |
+| Second virtual-host on service not routed   | Used `caddy2=` instead of `caddy_1=`        | Use `caddy_1`, `caddy_2`, `caddy_3`... (underscore + number, not number alone) |
+| SSE / WebSocket streaming breaks or hangs   | Missing `flush_interval=-1`                 | Add `caddy.reverse_proxy.flush_interval=-1` for streaming/SSE apps             |
+| Service accessible without auth             | `forward_auth` labels missing or incomplete | Verify all four `forward_auth` labels present on every protected service       |
+| Port mismatch / connection refused in proxy | Hard-coded port in `{{upstreams}}`          | Always use `{{upstreams ${APP_PORT:-3000}}}` — never hard-code                 |
+| Caddy logs `no upstream`                    | Service not on `app_net`                    | Add `networks: [app_net]` to the service                                       |
 
 ## 5) Required Validation Commands
 
@@ -220,10 +220,12 @@ Plus:
 - `DIRECTORY_STRUCTURE` snapshot (tree, depth-limited)
 
 <!-- BEGIN:EMBEDDED_FILES -->
+
 Generated at: 2026-05-30T11:51:23.498Z
 Use this snapshot as direct editing context.
 
 ### `DIRECTORY_STRUCTURE`
+
 ```text
 ./
   - -gitignore/
@@ -343,6 +345,7 @@ Use this snapshot as direct editing context.
 ```
 
 ### `.env.example`
+
 ```text
 # ================================================================
 #  .env.example — Docker Stack Template
@@ -1112,13 +1115,14 @@ TAILSCALE_WATCHDOG_UP_ACCEPT_DNS=false
 
 # CUR_OS=linux
 # DOCKER_SOCK=/var/run/docker.sock
-# COMPOSE_PROJECT_NAME=docker-stack-template
+# COMPOSE_PROJECT_NAME=dockerstackagentscode
 # CUR_WHOAMI=runner
 # CUR_WORK_DIR=/home/runner/work
 # WSL_WORKSPACE=/mnt/c/path/to/workspace
 ```
 
 ### `compose.apps.yml`
+
 ```yaml
 # ================================================================
 #  compose.apps.yml — Application Layer
@@ -1185,6 +1189,7 @@ services:
 ```
 
 ### `docker-compose/compose.core.yml`
+
 ```yaml
 # ================================================================
 #  compose.core.yml — Core Infrastructure
@@ -1240,6 +1245,7 @@ services:
 ```
 
 ### `docker-compose/compose.auth.yml`
+
 ```yaml
 # ================================================================
 #  compose.auth.yml — Auth + SQLite Backup Layer
@@ -1323,6 +1329,7 @@ services:
 ```
 
 ### `docker-compose/compose.ops.yml`
+
 ```yaml
 # ================================================================
 #  compose.ops.yml — Operational Tools
@@ -1455,6 +1462,7 @@ services:
 ```
 
 ### `docker-compose/compose.access.yml`
+
 ```yaml
 # ================================================================
 #  compose.access.yml — Network Access Layer
@@ -1718,6 +1726,7 @@ volumes:
 ```
 
 ### `docker-compose/compose.rclone.yml`
+
 ```yaml
 # ================================================================
 #  compose.rclone.yml — Rclone 3-stage stack
@@ -1827,6 +1836,7 @@ volumes:
 ```
 
 ### `docker-compose/scripts/dc.sh`
+
 ```bash
 #!/usr/bin/env bash
 # ================================================================
@@ -2098,6 +2108,7 @@ exec docker compose \
 ```
 
 ### `docker-compose/scripts/validate-env.js`
+
 ```js
 #!/usr/bin/env node
 "use strict";
@@ -2262,7 +2273,10 @@ function validateTinyauthUsers(v) {
   if (/(^|[^$])\$(?!\$)/.test(v)) {
     return "bcrypt dollars must be escaped as $$ for Docker Compose";
   }
-  const users = v.split(",").map((part) => part.trim()).filter(Boolean);
+  const users = v
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
   if (!users.length) return "must contain at least one user";
 
   for (const entry of users) {
@@ -2284,7 +2298,10 @@ function validateTinyauthUsers(v) {
 }
 
 function validateTrustedProxies(v) {
-  const entries = v.split(",").map((part) => part.trim()).filter(Boolean);
+  const entries = v
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
   if (!entries.length) return "must contain at least one IP/CIDR";
 
   for (const entry of entries) {
@@ -2315,20 +2332,18 @@ function buildAppHost(project, domain) {
 
 // 1) Required core env from compose files
 checkRequired("PROJECT_NAME", "docker project/network + subdomain prefix", (v) =>
-  /^[a-z0-9][a-z0-9-]*$/.test(v) ? null : "only lowercase letters, numbers, hyphen"
+  /^[a-z0-9][a-z0-9-]*$/.test(v) ? null : "only lowercase letters, numbers, hyphen",
 );
 checkRequired("DOMAIN", "root domain", isValidDomain);
 checkRequired("CADDY_EMAIL", "caddy email label", (v) => (v.includes("@") ? null : "invalid email"));
 checkRequired("TINYAUTH_APP_URL", "public HTTPS Tinyauth URL", isValidHttpsOrigin);
 checkPort("TINYAUTH_PORT", true);
-checkRequired("TINYAUTH_DB_FILE", "Tinyauth SQLite file", (v) =>
-  v.includes("/") || v.includes("\\") ? "must be a filename, not a path" : null
-);
+checkRequired("TINYAUTH_DB_FILE", "Tinyauth SQLite file", (v) => (v.includes("/") || v.includes("\\") ? "must be a filename, not a path" : null));
 checkRequired("TINYAUTH_USERS", "static users in username:bcrypt_hash format", validateTinyauthUsers);
 checkRequired("TINYAUTH_COOKIE_SECURE", "secure cookie toggle", (v) => (isBool(v) ? null : "must be true|false"));
 checkRequired("TINYAUTH_TRUSTED_PROXIES", "trusted Caddy/Cloudflared/Tailscale proxy CIDRs", validateTrustedProxies);
 checkOptional("TINYAUTH_OAUTH_AUTO_REDIRECT", "none|github|google|generic", (v) =>
-  v === "none" || /^[a-z][a-z0-9_-]*$/.test(v) ? null : "must be none or a provider id"
+  v === "none" || /^[a-z][a-z0-9_-]*$/.test(v) ? null : "must be none or a provider id",
 );
 checkOptional("TINYAUTH_OAUTH_WHITELIST", "comma-separated OAuth email/domain/regex whitelist");
 for (const [name, clientKey, secretKey] of [
@@ -2378,10 +2393,10 @@ checkOptional("DOCKER_DEPLOY_CODE_REMOTE", "git remote to fetch");
 checkOptional("DOCKER_DEPLOY_CODE_COMPOSE_SCRIPT", "compose orchestration script inside repo");
 checkOptional("DOCKER_DEPLOY_CODE_DEPLOY_SERVICES", "comma-separated compose services to rebuild/redeploy");
 checkOptional("DOCKER_DEPLOY_CODE_CONTAINER_CONTROL_ENABLED", "true|false toggle for container control API", (v) =>
-  isBool(v) ? null : "must be true|false"
+  isBool(v) ? null : "must be true|false",
 );
 checkOptional("DOCKER_DEPLOY_CODE_CONTAINER_ALLOW_ALL", "true|false toggle to allow all Docker containers", (v) =>
-  isBool(v) ? null : "must be true|false"
+  isBool(v) ? null : "must be true|false",
 );
 checkOptional("DOCKER_DEPLOY_CODE_SERVICE_ALLOWLIST", "comma-separated compose services allowed for start/stop/restart/rebuild/logs");
 checkOptional("DOCKER_DEPLOY_CODE_CONTAINER_ALLOWLIST", "comma-separated containers allowed for start/stop/restart/logs/inspect");
@@ -2415,7 +2430,7 @@ if (env.DOCKER_DEPLOY_CODE_ENABLED === "true") {
     errors.push("DOCKER_DEPLOY_CODE_REQUIRE_TOKEN must be true|false");
   } else if (requireToken === "true") {
     checkRequired("DOCKER_DEPLOY_CODE_API_TOKEN", "required when deploy-code token auth is enabled", (v) =>
-      v.length >= 16 ? null : "must be at least 16 characters"
+      v.length >= 16 ? null : "must be at least 16 characters",
     );
   } else {
     warnings.push("DOCKER_DEPLOY_CODE_REQUIRE_TOKEN=false while deploy-code is enabled -> rely on Tinyauth / private network only");
@@ -2423,7 +2438,24 @@ if (env.DOCKER_DEPLOY_CODE_ENABLED === "true") {
 }
 
 // 3) Flags
-for (const key of ["ENABLE_DOZZLE", "ENABLE_FILEBROWSER", "ENABLE_WEBSSH", "ENABLE_TAILSCALE", "ENABLE_LITESTREAM", "ENABLE_RCLONE", "DOCKER_DEPLOY_CODE_ENABLED", "DOCKER_DEPLOY_CODE_POLL_ENABLED", "DOCKER_DEPLOY_CODE_AUTO_DEPLOY_ON_CHANGE", "DOCKER_DEPLOY_CODE_RUN_ON_START", "DOCKER_DEPLOY_CODE_REQUIRE_TOKEN", "DOCKER_DEPLOY_CODE_GIT_CLEAN", "DOCKER_DEPLOY_CODE_ZIP_STRIP_TOP_LEVEL", "DOCKER_DEPLOY_CODE_ZIP_DELETE_MISSING", "DOCKER_DEPLOY_CODE_ZIP_BACKUP_BEFORE_APPLY", "DOCKER_DEPLOY_CODE_ZIP_DEPLOY_AFTER_APPLY"]) {
+for (const key of [
+  "ENABLE_DOZZLE",
+  "ENABLE_FILEBROWSER",
+  "ENABLE_WEBSSH",
+  "ENABLE_TAILSCALE",
+  "ENABLE_LITESTREAM",
+  "ENABLE_RCLONE",
+  "DOCKER_DEPLOY_CODE_ENABLED",
+  "DOCKER_DEPLOY_CODE_POLL_ENABLED",
+  "DOCKER_DEPLOY_CODE_AUTO_DEPLOY_ON_CHANGE",
+  "DOCKER_DEPLOY_CODE_RUN_ON_START",
+  "DOCKER_DEPLOY_CODE_REQUIRE_TOKEN",
+  "DOCKER_DEPLOY_CODE_GIT_CLEAN",
+  "DOCKER_DEPLOY_CODE_ZIP_STRIP_TOP_LEVEL",
+  "DOCKER_DEPLOY_CODE_ZIP_DELETE_MISSING",
+  "DOCKER_DEPLOY_CODE_ZIP_BACKUP_BEFORE_APPLY",
+  "DOCKER_DEPLOY_CODE_ZIP_DEPLOY_AFTER_APPLY",
+]) {
   const v = env[key];
   if (!v) {
     warnings.push(`${key} not set -> using default from scripts/compose`);
@@ -2453,7 +2485,7 @@ if ((env.ENABLE_LITESTREAM || "true") === "true") {
   if (!isBool(initMode)) errors.push("LITESTREAM_INIT_MODE must be true|false");
   checkRequired("LITESTREAM_REPLICATE_DBS", "comma-separated SQLite DB ids, e.g. tinyauth or tinyauth,app");
   checkRequired("LITESTREAM_S3_ENDPOINT", "S3-compatible endpoint", (v) =>
-    v.startsWith("http://") || v.startsWith("https://") ? null : "must start with http:// or https://"
+    v.startsWith("http://") || v.startsWith("https://") ? null : "must start with http:// or https://",
   );
   checkRequired("LITESTREAM_S3_BUCKET", "S3 bucket");
   checkRequired("LITESTREAM_S3_ACCESS_KEY_ID", "S3 access key id");
@@ -2484,16 +2516,12 @@ if ((env.ENABLE_WEBSSH || "true") === "true") {
 
 // 6) Tailscale + keep-ip rules based on compose.access.yml
 if (env.ENABLE_TAILSCALE === "true") {
-  checkRequired("TAILSCALE_AUTHKEY", "required by tailscale service", (v) =>
-    v.startsWith("tskey-") ? null : "must start with tskey-"
-  );
+  checkRequired("TAILSCALE_AUTHKEY", "required by tailscale service", (v) => (v.startsWith("tskey-") ? null : "must start with tskey-"));
   checkRequired("TAILSCALE_TAILNET_DOMAIN", "required by dc.sh to render tailscale/serve.json", (v) =>
-    v && v !== "-" ? null : "must not be empty or '-'"
+    v && v !== "-" ? null : "must not be empty or '-'",
   );
   checkOptional("TAILSCALE_TAGS", "advertise tags", (v) =>
-    /^tag:[A-Za-z0-9][A-Za-z0-9_-]*(,tag:[A-Za-z0-9][A-Za-z0-9_-]*)*$/.test(v)
-      ? null
-      : "format must be tag:a,tag:b"
+    /^tag:[A-Za-z0-9][A-Za-z0-9_-]*(,tag:[A-Za-z0-9][A-Za-z0-9_-]*)*$/.test(v) ? null : "format must be tag:a,tag:b",
   );
 
   const keepIp = (env.TAILSCALE_KEEP_IP_ENABLE || "false").trim();
@@ -2506,7 +2534,7 @@ if (env.ENABLE_TAILSCALE === "true") {
 
   if (keepIp === "true") {
     checkRequired("TAILSCALE_KEEP_IP_FIREBASE_URL", "required when keep-ip enabled", (v) =>
-      isValidHttpsJsonUrl(v) ? null : "must be https URL ending with .json"
+      isValidHttpsJsonUrl(v) ? null : "must be https URL ending with .json",
     );
     checkOptional("TAILSCALE_KEEP_IP_CERTS_DIR", "certs dir path");
     checkOptional("TAILSCALE_KEEP_IP_INTERVAL_SEC", "backup interval seconds", (v) => {
@@ -2577,6 +2605,7 @@ console.log("\n✅ Env hợp lệ. Có thể triển khai.\n");
 ```
 
 ### `docker-compose/scripts/validate-compose.js`
+
 ```js
 #!/usr/bin/env node
 // ================================================================
@@ -2584,33 +2613,33 @@ console.log("\n✅ Env hợp lệ. Có thể triển khai.\n");
 //  Runs `docker compose config` across all compose files to
 //  validate the merged YAML resolves without errors.
 // ================================================================
-'use strict';
+"use strict";
 
-const { execFileSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+const { execFileSync } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 
 const FILES = [
-  'docker-compose/compose.core.yml',
-  'docker-compose/compose.auth.yml',
-  'docker-compose/compose.ops.yml',
-  'docker-compose/compose.access.yml',
-  'docker-compose/compose.deploy.yml',
-  'docker-compose/compose.rclone.yml',
-  'compose.apps.yml',
+  "docker-compose/compose.core.yml",
+  "docker-compose/compose.auth.yml",
+  "docker-compose/compose.ops.yml",
+  "docker-compose/compose.access.yml",
+  "docker-compose/compose.deploy.yml",
+  "docker-compose/compose.rclone.yml",
+  "compose.apps.yml",
 ];
 
 function parseEnvFile(filePath) {
   const out = {};
   if (!fs.existsSync(filePath)) return out;
-  const raw = fs.readFileSync(filePath, 'utf8');
-  for (const line of raw.split('\n')) {
+  const raw = fs.readFileSync(filePath, "utf8");
+  for (const line of raw.split("\n")) {
     const s = line.trim();
-    if (!s || s.startsWith('#') || !s.includes('=')) continue;
-    const idx = s.indexOf('=');
+    if (!s || s.startsWith("#") || !s.includes("=")) continue;
+    const idx = s.indexOf("=");
     const key = s.slice(0, idx).trim();
     let value = s.slice(idx + 1).trim();
-    value = value.replace(/^['"]|['"]$/g, '');
+    value = value.replace(/^['"]|['"]$/g, "");
     out[key] = value;
   }
   return out;
@@ -2619,24 +2648,24 @@ function parseEnvFile(filePath) {
 function profileArgsFromEnv(env) {
   const profiles = [];
   const curOs = String(env.CUR_OS || process.platform).toLowerCase();
-  const isWindows = curOs.includes('win');
+  const isWindows = curOs.includes("win");
 
-  if (env.ENABLE_DOZZLE !== 'false') profiles.push('dozzle');
-  if (env.ENABLE_FILEBROWSER !== 'false') profiles.push('filebrowser');
-  if (env.ENABLE_WEBSSH !== 'false') profiles.push(isWindows ? 'webssh-windows' : 'webssh-linux');
-  if (env.ENABLE_TAILSCALE === 'true') profiles.push(isWindows ? 'tailscale-windows' : 'tailscale-linux');
-  if (env.ENABLE_LITESTREAM !== 'false') profiles.push('litestream');
-  if (env.DOCKER_DEPLOY_CODE_ENABLED === 'true') profiles.push('deploy-code');
-  if (env.ENABLE_RCLONE === 'true') profiles.push('rclone');
+  if (env.ENABLE_DOZZLE !== "false") profiles.push("dozzle");
+  if (env.ENABLE_FILEBROWSER !== "false") profiles.push("filebrowser");
+  if (env.ENABLE_WEBSSH !== "false") profiles.push(isWindows ? "webssh-windows" : "webssh-linux");
+  if (env.ENABLE_TAILSCALE === "true") profiles.push(isWindows ? "tailscale-windows" : "tailscale-linux");
+  if (env.ENABLE_LITESTREAM !== "false") profiles.push("litestream");
+  if (env.DOCKER_DEPLOY_CODE_ENABLED === "true") profiles.push("deploy-code");
+  if (env.ENABLE_RCLONE === "true") profiles.push("rclone");
 
-  return profiles.flatMap((profile) => ['--profile', profile]);
+  return profiles.flatMap((profile) => ["--profile", profile]);
 }
 
-console.log('\n🐳  Compose Config Validation\n');
+console.log("\n🐳  Compose Config Validation\n");
 
-const env = parseEnvFile('.env');
+const env = parseEnvFile(".env");
 const files = [...FILES];
-if (env.ENABLE_RCLONE === 'true') files.push('docker-compose/compose.rclone-gate.yml');
+if (env.ENABLE_RCLONE === "true") files.push("docker-compose/compose.rclone-gate.yml");
 
 // Check all files exist
 let abort = false;
@@ -2650,30 +2679,23 @@ for (const f of files) {
 }
 if (abort) process.exit(1);
 
-const fileArgs = files.map(f => `-f ${f}`).join(' ');
+const fileArgs = files.map((f) => `-f ${f}`).join(" ");
 const profileArgs = profileArgsFromEnv(env);
-const args = [
-  'compose',
-  ...files.flatMap((f) => ['-f', f]),
-  ...profileArgs,
-  '--project-directory',
-  process.cwd(),
-  'config',
-  '--quiet',
-];
+const args = ["compose", ...files.flatMap((f) => ["-f", f]), ...profileArgs, "--project-directory", process.cwd(), "config", "--quiet"];
 
-console.log(`\n    Running: docker compose ${fileArgs} ${profileArgs.join(' ')} config ...\n`);
+console.log(`\n    Running: docker compose ${fileArgs} ${profileArgs.join(" ")} config ...\n`);
 
 try {
-  execFileSync('docker', args, { stdio: 'inherit', cwd: path.resolve(__dirname, '../..') });
-  console.log('\n✅  Compose configuration is valid!\n');
+  execFileSync("docker", args, { stdio: "inherit", cwd: path.resolve(__dirname, "../..") });
+  console.log("\n✅  Compose configuration is valid!\n");
 } catch {
-  console.log('\n❌  Compose validation failed — fix YAML errors above.\n');
+  console.log("\n❌  Compose validation failed — fix YAML errors above.\n");
   process.exit(1);
 }
 ```
 
 ### `services/litestream/litestream.yml`
+
 ```yaml
 # ================================================================
 #  /etc/litestream.yml — Multi-DB SQLite replication
@@ -2734,6 +2756,7 @@ dbs:
 ```
 
 ### `services/litestream/entrypoint.sh`
+
 ```bash
 #!/bin/sh
 # ================================================================
@@ -2799,7 +2822,8 @@ exec litestream replicate -config "$CONFIG_PATH"
 ```
 
 ### `docs/services/tinyauth.md`
-```text
+
+````text
 # Tinyauth service (`docker-compose/compose.auth.yml`)
 
 ## Vai trò
@@ -2831,11 +2855,12 @@ Các service cần bảo vệ thêm labels:
 - "caddy.forward_auth.uri=/api/auth/caddy"
 - "caddy.forward_auth.header_up=X-Forwarded-Proto https"
 - "caddy.forward_auth.copy_headers=Remote-User Remote-Email Remote-Name Remote-Groups"
-```
+````
 
 Giữ label `reverse_proxy` của service như cũ. Header `X-Forwarded-Proto https` giúp Tinyauth nhìn đúng scheme public khi request đi qua Cloudflared/Tailscale vào Caddy bằng HTTP nội bộ.
 
 ## ENV cần thiết
+
 - `TINYAUTH_APP_URL`: public URL của Tinyauth, ví dụ `https://auth.${DOMAIN}`.
 - `TINYAUTH_PORT`: port nội bộ Tinyauth, mặc định `3000`.
 - `TINYAUTH_DB_FILE`: tên file SQLite trong volume Tinyauth, mặc định `tinyauth.db`.
@@ -2845,6 +2870,7 @@ Giữ label `reverse_proxy` của service như cũ. Header `X-Forwarded-Proto ht
 - `TINYAUTH_LOG_LEVEL`: `trace|debug|info|warn|error`.
 
 Mapping runtime v5:
+
 - `TINYAUTH_APP_URL` -> `TINYAUTH_APPURL`
 - `TINYAUTH_USERS` -> `TINYAUTH_AUTH_USERS`
 - `TINYAUTH_COOKIE_SECURE` -> `TINYAUTH_AUTH_SECURECOOKIE`
@@ -2860,6 +2886,7 @@ docker run -it --rm ghcr.io/steveiliop56/tinyauth:v5 user create --interactive
 Chọn tùy chọn `format for Docker`, rồi đưa output vào `TINYAUTH_USERS`. Không dùng plain password như `admin:changeme`.
 
 ## OAuth ENV phổ biến
+
 - `TINYAUTH_OAUTH_AUTO_REDIRECT`: `none`, `github`, `google`, `generic`, hoặc provider id khác.
 - `TINYAUTH_OAUTH_WHITELIST`: whitelist email/domain/regex cho OAuth.
 - Google:
@@ -2881,6 +2908,7 @@ Chọn tùy chọn `format for Docker`, rồi đưa output vào `TINYAUTH_USERS`
   - `TINYAUTH_GENERIC_NAME`
 
 ## Quy trình triển khai
+
 1. Điền `TINYAUTH_APP_URL` bằng URL HTTPS public.
 2. Generate bcrypt user riêng cho deployment và cập nhật `TINYAUTH_USERS`.
 3. Giữ `TINYAUTH_COOKIE_SECURE=true` và cấu hình `TINYAUTH_TRUSTED_PROXIES`.
@@ -2890,12 +2918,14 @@ Chọn tùy chọn `format for Docker`, rồi đưa output vào `TINYAUTH_USERS`
 7. Chạy: `bash docker-compose/scripts/dc.sh up -d --build --remove-orphans`.
 
 ## Vận hành
+
 - Logs: `bash docker-compose/scripts/dc.sh logs -f tinyauth`.
 - Restart: `bash docker-compose/scripts/dc.sh restart tinyauth`.
 - DB nằm ở `${DOCKER_VOLUMES_ROOT}/tinyauth/${TINYAUTH_DB_FILE}`.
 - Không xóa DB local khi `LITESTREAM_INIT_MODE=false` nếu chưa chắc replica S3 restore được.
 
 ## Legacy cần bỏ
+
 - `TINYAUTH_SECRET`
 - `TINYAUTH_DISABLE_CONTINUE`
 - `TINYAUTH_TRUST_PROXY`
@@ -2903,7 +2933,8 @@ Chọn tùy chọn `format for Docker`, rồi đưa output vào `TINYAUTH_USERS`
 - `TINYAUTH_ALLOWED_DOMAINS`
 - `TINYAUTH_ALLOWED_GROUPS`
 - `TINYAUTH_OIDC_ISSUER`, `TINYAUTH_OIDC_CLIENT_ID`, `TINYAUTH_OIDC_CLIENT_SECRET`, `TINYAUTH_OIDC_SCOPES`
-```
+
+````
 
 ### `docs/services/litestream.md`
 ```text
@@ -2968,23 +2999,23 @@ DB hiện có:
 ```yaml
 volumes:
   - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}/myapp:/data/myapp
-```
+````
 
 2. Thêm DB vào `services/litestream/litestream.yml`:
 
 ```yaml
-  - path: /data/myapp/${LITESTREAM_MYAPP_DB_FILE}
-    replicas:
-      - type: s3
-        endpoint: ${LITESTREAM_S3_ENDPOINT}
-        bucket: ${LITESTREAM_S3_BUCKET}
-        path: ${LITESTREAM_MYAPP_S3_PATH}
-        access-key-id: ${LITESTREAM_S3_ACCESS_KEY_ID}
-        secret-access-key: ${LITESTREAM_S3_SECRET_ACCESS_KEY}
-        sync-interval: ${LITESTREAM_SYNC_INTERVAL}
-        snapshot-interval: ${LITESTREAM_SNAPSHOT_INTERVAL}
-        retention: ${LITESTREAM_RETENTION}
-        retention-check-interval: ${LITESTREAM_RETENTION_CHECK_INTERVAL}
+- path: /data/myapp/${LITESTREAM_MYAPP_DB_FILE}
+  replicas:
+    - type: s3
+      endpoint: ${LITESTREAM_S3_ENDPOINT}
+      bucket: ${LITESTREAM_S3_BUCKET}
+      path: ${LITESTREAM_MYAPP_S3_PATH}
+      access-key-id: ${LITESTREAM_S3_ACCESS_KEY_ID}
+      secret-access-key: ${LITESTREAM_S3_SECRET_ACCESS_KEY}
+      sync-interval: ${LITESTREAM_SYNC_INTERVAL}
+      snapshot-interval: ${LITESTREAM_SNAPSHOT_INTERVAL}
+      retention: ${LITESTREAM_RETENTION}
+      retention-check-interval: ${LITESTREAM_RETENTION_CHECK_INTERVAL}
 ```
 
 3. Thêm env vào `.env.example` và `.env`:
@@ -2999,7 +3030,9 @@ LITESTREAM_REPLICATE_DBS=tinyauth,myapp
 5. Nếu app cần restore trước khi start, thêm `depends_on.litestream-restore.condition=service_completed_successfully`.
 
 ## Quy trình triển khai an toàn
+
 ### Lần đầu tạo DB mới
+
 1. Set `LITESTREAM_INIT_MODE=true`.
 2. Deploy stack.
 3. Truy cập app/Tinyauth để tạo dữ liệu ban đầu.
@@ -3007,16 +3040,19 @@ LITESTREAM_REPLICATE_DBS=tinyauth,myapp
 5. Đổi `LITESTREAM_INIT_MODE=false`.
 
 ### Các lần deploy bình thường
+
 1. Giữ `LITESTREAM_INIT_MODE=false`.
 2. `litestream-restore` bắt buộc restore replica trước.
 3. Nếu không có backup hoặc restore lỗi, app không chạy để tránh tạo DB rỗng.
 
 ## Vận hành
+
 - Config check: `bash docker-compose/scripts/dc.sh config`.
 - Logs restore/replicate: `bash docker-compose/scripts/dc.sh logs -f litestream litestream-restore`.
 - Kiểm tra container: `bash docker-compose/scripts/dc.sh ps`.
 - Không chạy `down -v` nếu chưa chắc replica S3 đã ổn.
-```
+
+````
 
 ### `docs/services/rclone.md`
 ```text
@@ -3033,32 +3069,34 @@ Rclone stack giải quyết cả hai mục tiêu trên qua kiến trúc 3 servic
 
 ## Kiến trúc
 
-```
+````
+
 ┌────────────────────────────────────────────────────────────────┐
-│                       Container start                          │
+│ Container start │
 └────────────┬───────────────────────────────────────────────────┘
-             │
-             ▼
-   ┌──────────────────────┐
-   │  rclone-init         │  one-shot
-   │  (decode .conf)      │  RCLONE_CONFIG_BASE64 → /config/rclone/rclone.conf
-   └──────────┬───────────┘
-              │ exit 0
-              ▼
-   ┌──────────────────────┐
-   │  rclone-restore      │  one-shot
-   │  remote → local      │  pull .docker-volumes từ remote (nếu có data)
-   └──────────┬───────────┘
-              │ exit 0
-              ├──────────────────────────────────┐
-              ▼                                  ▼
-   ┌──────────────────────┐            ┌──────────────────────┐
-   │  litestream-restore  │            │  rclone-sync         │
-   │  app, tinyauth       │            │  local → remote      │
-   │  (đã depends_on      │            │  loop mỗi N giây     │
-   │   rclone-restore)    │            │  + audit periodic    │
-   └──────────────────────┘            └──────────────────────┘
-```
+│
+▼
+┌──────────────────────┐
+│ rclone-init │ one-shot
+│ (decode .conf) │ RCLONE_CONFIG_BASE64 → /config/rclone/rclone.conf
+└──────────┬───────────┘
+│ exit 0
+▼
+┌──────────────────────┐
+│ rclone-restore │ one-shot
+│ remote → local │ pull .docker-volumes từ remote (nếu có data)
+└──────────┬───────────┘
+│ exit 0
+├──────────────────────────────────┐
+▼ ▼
+┌──────────────────────┐ ┌──────────────────────┐
+│ litestream-restore │ │ rclone-sync │
+│ app, tinyauth │ │ local → remote │
+│ (đã depends_on │ │ loop mỗi N giây │
+│ rclone-restore) │ │ + audit periodic │
+└──────────────────────┘ └──────────────────────┘
+
+````
 
 App / litestream-restore **chỉ start sau khi rclone-restore exit 0**, đảm bảo
 local volume luôn được đồng bộ với remote trước khi business logic chạy.
@@ -3087,9 +3125,10 @@ copy/sync. Đường write của app KHÔNG bị chậm bởi remote.
    ```bash
    cp services/rclone/rclone.conf.example services/rclone/rclone.conf
    # → sửa file rclone.conf, điền credentials thật
-   ```
+````
 
 2. Encode thành base64 và đặt vào `.env`:
+
    ```bash
    # Linux / macOS
    base64 -w 0 services/rclone/rclone.conf
@@ -3123,6 +3162,7 @@ docker compose --profile rclone run --rm \
 ```
 
 Khi mọi thứ OK:
+
 ```bash
 bash docker-compose/scripts/dc.sh up -d
 bash docker-compose/scripts/dc.sh logs -f rclone-sync
@@ -3132,28 +3172,29 @@ bash docker-compose/scripts/dc.sh logs -f rclone-sync
 
 ### Bắt buộc
 
-| Biến | Ý nghĩa |
-|------|---------|
-| `ENABLE_RCLONE` | `true` để bật profile rclone (kéo thêm gate file) |
-| `RCLONE_CONFIG_BASE64` | Base64 của `rclone.conf` đã điền credentials |
-| `RCLONE_REMOTE_TARGET` | Đích sync, dạng `<remote_name>:<bucket>/<path>` |
+| Biến                   | Ý nghĩa                                           |
+| ---------------------- | ------------------------------------------------- |
+| `ENABLE_RCLONE`        | `true` để bật profile rclone (kéo thêm gate file) |
+| `RCLONE_CONFIG_BASE64` | Base64 của `rclone.conf` đã điền credentials      |
+| `RCLONE_REMOTE_TARGET` | Đích sync, dạng `<remote_name>:<bucket>/<path>`   |
 
 ### Tùy chọn
 
-| Biến | Mặc định | Ý nghĩa |
-|------|---------|---------|
-| `RCLONE_SYNC_INTERVAL_SEC` | `30` | Khoảng giây giữa 2 lần sync |
-| `RCLONE_LOG_LEVEL` | `INFO` | DEBUG / INFO / NOTICE / ERROR |
-| `RCLONE_DRY_RUN` | `false` | `true` = chỉ liệt kê, không transfer (chỉ áp dụng cho sync) |
-| `RCLONE_TRANSFERS` | `8` | Số luồng transfer song song |
-| `RCLONE_CHECKERS` | `16` | Số luồng kiểm tra metadata song song |
-| `RCLONE_AUDIT_EVERY` | `10` | Cứ N lần sync chạy 1 lần `rclone check` (0 = tắt) |
-| `RCLONE_BWLIMIT` | _(empty)_ | Ví dụ `10M` để giới hạn 10 MiB/s |
-| `RCLONE_EXTRA_FLAGS` | _(empty)_ | Truyền thẳng vào lệnh rclone (`--exclude ...`, `--max-age ...`) |
+| Biến                       | Mặc định  | Ý nghĩa                                                         |
+| -------------------------- | --------- | --------------------------------------------------------------- |
+| `RCLONE_SYNC_INTERVAL_SEC` | `30`      | Khoảng giây giữa 2 lần sync                                     |
+| `RCLONE_LOG_LEVEL`         | `INFO`    | DEBUG / INFO / NOTICE / ERROR                                   |
+| `RCLONE_DRY_RUN`           | `false`   | `true` = chỉ liệt kê, không transfer (chỉ áp dụng cho sync)     |
+| `RCLONE_TRANSFERS`         | `8`       | Số luồng transfer song song                                     |
+| `RCLONE_CHECKERS`          | `16`      | Số luồng kiểm tra metadata song song                            |
+| `RCLONE_AUDIT_EVERY`       | `10`      | Cứ N lần sync chạy 1 lần `rclone check` (0 = tắt)               |
+| `RCLONE_BWLIMIT`           | _(empty)_ | Ví dụ `10M` để giới hạn 10 MiB/s                                |
+| `RCLONE_EXTRA_FLAGS`       | _(empty)_ | Truyền thẳng vào lệnh rclone (`--exclude ...`, `--max-age ...`) |
 
 ## Log mẫu (chứng minh đã đồng bộ)
 
 `rclone-restore` (một lần lúc start):
+
 ```
 =================================================================
  RCLONE-RESTORE  ::  remote → local (one-shot bootstrap)
@@ -3181,6 +3222,7 @@ bash docker-compose/scripts/dc.sh logs -f rclone-sync
 ```
 
 `rclone-sync` (sidecar, mỗi 30s):
+
 ```
 ─── SYNC #5  @  2026-05-30T11:18:30Z ──────────────────────────
   Local      : 27 files / 4.61 MB (4831250 B)
@@ -3193,24 +3235,26 @@ bash docker-compose/scripts/dc.sh logs -f rclone-sync
 
 ## Files
 
-| File | Vai trò |
-|------|---------|
-| `docker-compose/compose.rclone.yml` | 3 service: rclone-init, rclone-restore, rclone-sync |
+| File                                     | Vai trò                                                                                                    |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `docker-compose/compose.rclone.yml`      | 3 service: rclone-init, rclone-restore, rclone-sync                                                        |
 | `docker-compose/compose.rclone-gate.yml` | Override thêm `depends_on: rclone-restore` cho app + litestream-restore (chỉ nạp khi `ENABLE_RCLONE=true`) |
-| `services/rclone/init.sh` | Decode base64 → rclone.conf, validate |
-| `services/rclone/restore.sh` | Pull remote → local 1 lần lúc start |
-| `services/rclone/sync.sh` | Loop sync local → remote + audit |
-| `services/rclone/rclone.conf.example` | Mẫu config (1 remote, union, crypt, chain) |
+| `services/rclone/init.sh`                | Decode base64 → rclone.conf, validate                                                                      |
+| `services/rclone/restore.sh`             | Pull remote → local 1 lần lúc start                                                                        |
+| `services/rclone/sync.sh`                | Loop sync local → remote + audit                                                                           |
+| `services/rclone/rclone.conf.example`    | Mẫu config (1 remote, union, crypt, chain)                                                                 |
 
 ## Lỗi thường gặp
 
-| Hiện tượng | Nguyên nhân | Khắc phục |
-|------------|-------------|-----------|
-| `rclone-init` exit 1, "RCLONE_CONFIG_BASE64 chưa được set" | Quên paste base64 vào `.env` | Encode `rclone.conf` rồi paste |
-| `rclone-init` exit 1, "Decode … thất bại" | Chuỗi base64 bị xuống dòng / có ký tự lạ | Encode lại bằng `base64 -w 0` (không wrap) |
+| Hiện tượng                                                                         | Nguyên nhân                                                              | Khắc phục                                                                       |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `rclone-init` exit 1, "RCLONE_CONFIG_BASE64 chưa được set"                         | Quên paste base64 vào `.env`                                             | Encode `rclone.conf` rồi paste                                                  |
+| `rclone-init` exit 1, "Decode … thất bại"                                          | Chuỗi base64 bị xuống dòng / có ký tự lạ                                 | Encode lại bằng `base64 -w 0` (không wrap)                                      |
 | `rclone-init` exit 1, `Invalid value when setting --bwlimit ... RCLONE_BWLIMIT=""` | Compose cũ inject toàn bộ `.env`, làm rclone tự parse biến tùy chọn rỗng | Cập nhật `compose.rclone.yml`; bản mới chỉ forward biến nội bộ `STACK_RCLONE_*` |
-| `rclone-restore` exit 1, "không kết nối được remote" | Sai endpoint / credentials / bucket chưa tồn tại | Kiểm tra section `[remote_store]` và provider |
-| App start nhưng data trống sau restart | `ENABLE_RCLONE=false` → gate file không nạp | Bật `ENABLE_RCLONE=true` |
-| Sync chậm | Mạng / S3 throttling | Giảm `RCLONE_TRANSFERS`, đặt `RCLONE_BWLIMIT` |
+| `rclone-restore` exit 1, "không kết nối được remote"                               | Sai endpoint / credentials / bucket chưa tồn tại                         | Kiểm tra section `[remote_store]` và provider                                   |
+| App start nhưng data trống sau restart                                             | `ENABLE_RCLONE=false` → gate file không nạp                              | Bật `ENABLE_RCLONE=true`                                                        |
+| Sync chậm                                                                          | Mạng / S3 throttling                                                     | Giảm `RCLONE_TRANSFERS`, đặt `RCLONE_BWLIMIT`                                   |
+
 ```
 <!-- END:EMBEDDED_FILES -->
+```

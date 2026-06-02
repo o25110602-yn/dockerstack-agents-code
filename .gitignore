@@ -121,7 +121,7 @@ secrets.json
 
 # ── Git O-Alias helpers ───────────────────────
 .git-o-config
-env-docker-stack-template-default-rtdb-tailscale-keep-ip-export.json
+env-dockerstackagentscode-default-rtdb-tailscale-keep-ip-export.json
 
 # ── Node.js ──────────────────────────────────────────
 

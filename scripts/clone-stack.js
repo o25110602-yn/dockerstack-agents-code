@@ -210,7 +210,7 @@ function copyEnvSanitized(src, dest, blankVars) {
 // ─── Clone metadata updater ──────────────────────────────────────────────────
 
 const RENAME_TEXT_EXTENSIONS = new Set([".json", ".md", ".yml", ".yaml"]);
-const TEMPLATE_NAMES = ["docker-stack-template", "docker-stack-template"];
+const TEMPLATE_NAMES = ["dockerstackagentscode", "dockerstackagentscode"];
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

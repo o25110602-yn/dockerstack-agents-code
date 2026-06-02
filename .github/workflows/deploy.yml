@@ -2,7 +2,7 @@
 # Deploys the modular Docker Compose stack via dc.sh.
 # Supports both ubuntu-latest and windows-latest runners.
 
-name: docker-stack-template
+name: dockerstackagentscode
 on:
   workflow_dispatch:
   push:

@@ -1,4 +1,4 @@
-# AI Agent Project Rules (docker-stack-template)
+# AI Agent Project Rules (dockerstackagentscode)
 
 These rules are mandatory for ANY AI Agent (Codex, Claude Code, Antigravity, Cursor, etc.) working in this project.
 

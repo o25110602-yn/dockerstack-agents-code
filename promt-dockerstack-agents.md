@@ -1,6 +1,6 @@
 Prompt: Repo Agent Launcher UI — Firebase Realtime Database + Git Credentials riêng + Agent Credentials riêng + TTYD Pool
 
-Hãy triển khai module Repo Agent Launcher UI cho repo "docker-stack-template".
+Hãy triển khai module Repo Agent Launcher UI cho repo "dockerstackagentscode".
 
 Mục tiêu là tạo một UI để:
 
@@ -119,30 +119,30 @@ Flow:
 Git Credential object:
 
 {
-  "id": "git_001",
-  "provider": "github",
-  "name": "GitHub Main",
-  "tokenBase64": "...",
-  "username": "o22zalo",
-  "orgs": ["org-a", "org-b"],
-  "enabled": true,
-  "createdAt": "...",
-  "updatedAt": "..."
+"id": "git_001",
+"provider": "github",
+"name": "GitHub Main",
+"tokenBase64": "...",
+"username": "o22zalo",
+"orgs": ["org-a", "org-b"],
+"enabled": true,
+"createdAt": "...",
+"updatedAt": "..."
 }
 
 Repo cache object:
 
 {
-  "id": "repo_001",
-  "gitCredentialId": "git_001",
-  "provider": "github",
-  "fullName": "o22zalo/docker-stack-template",
-  "cloneUrl": "https://github.com/o22zalo/docker-stack-template.git",
-  "defaultBranch": "main",
-  "localPath": "/repos/github/o22zalo/docker-stack-template",
-  "enabled": true,
-  "favorite": false,
-  "lastFetchedAt": "..."
+"id": "repo_001",
+"gitCredentialId": "git_001",
+"provider": "github",
+"fullName": "o22zalo/dockerstackagentscode",
+"cloneUrl": "https://github.com/o22zalo/dockerstackagentscode.git",
+"defaultBranch": "main",
+"localPath": "/repos/github/o22zalo/dockerstackagentscode",
+"enabled": true,
+"favorite": false,
+"lastFetchedAt": "..."
 }
 
 Git Credentials UI cần có chức năng:
@@ -158,13 +158,13 @@ Delete Credential
 Nút Research Repo lại chạy lại đúng luồng:
 
 Git credential đã lưu
-  ↓
+↓
 fetch username/account
-  ↓
+↓
 fetch org/project/group
-  ↓
+↓
 fetch repo list
-  ↓
+↓
 update repo cache trên Firebase
 
 ---
@@ -202,14 +202,14 @@ Custom Agent
 Agent Profile object:
 
 {
-  "id": "agent_001",
-  "name": "codex",
-  "label": "Codex CLI",
-  "command": "codex",
-  "args": "",
-  "workdir": "/workspace",
-  "startMode": "shell",
-  "enabled": true
+"id": "agent_001",
+"name": "codex",
+"label": "Codex CLI",
+"command": "codex",
+"args": "",
+"workdir": "/workspace",
+"startMode": "shell",
+"enabled": true
 }
 
 Agent Profiles lưu tại:
@@ -240,14 +240,14 @@ Dùng để chép đè config/auth file vào container trước khi agent chạy
 Ví dụ:
 
 {
-  "id": "agent_cred_codex_001",
-  "agentProfileId": "agent_001",
-  "name": "Codex Default Config",
-  "type": "file",
-  "targetPath": "/home/coder/.codex/config.toml",
-  "contentBase64": "...",
-  "mode": "0600",
-  "enabled": true
+"id": "agent_cred_codex_001",
+"agentProfileId": "agent_001",
+"name": "Codex Default Config",
+"type": "file",
+"targetPath": "/home/coder/.codex/config.toml",
+"contentBase64": "...",
+"mode": "0600",
+"enabled": true
 }
 
 Type: script
@@ -255,12 +255,12 @@ Type: script
 Dùng để chạy script auth/bootstrap trước khi agent chạy.
 
 {
-  "id": "agent_cred_claude_001",
-  "agentProfileId": "agent_002",
-  "name": "Claude Bootstrap",
-  "type": "script",
-  "scriptBase64": "...",
-  "enabled": true
+"id": "agent_cred_claude_001",
+"agentProfileId": "agent_002",
+"name": "Claude Bootstrap",
+"type": "script",
+"scriptBase64": "...",
+"enabled": true
 }
 
 Type: env
@@ -268,14 +268,14 @@ Type: env
 Dùng để inject env vars cho agent.
 
 {
-  "id": "agent_cred_opencode_001",
-  "agentProfileId": "agent_003",
-  "name": "OpenCode API Env",
-  "type": "env",
-  "env": {
-    "OPENCODE_CONFIG": "/home/coder/.config/opencode/opencode.json"
-  },
-  "enabled": true
+"id": "agent_cred_opencode_001",
+"agentProfileId": "agent_003",
+"name": "OpenCode API Env",
+"type": "env",
+"env": {
+"OPENCODE_CONFIG": "/home/coder/.config/opencode/opencode.json"
+},
+"enabled": true
 }
 
 Type: capture
@@ -333,8 +333,8 @@ Không chọn lẫn Git Credential và Agent Credential ở màn hình launch, t
 Payload launch:
 
 {
-  "repoId": "repo_001",
-  "agentProfileId": "agent_001"
+"repoId": "repo_001",
+"agentProfileId": "agent_001"
 }
 
 Backend tự resolve:
@@ -367,14 +367,14 @@ Slot state lưu tại:
 Slot object:
 
 {
-  "slot": "001",
-  "name": "ttyd001",
-  "serviceName": "ttyd-001",
-  "containerName": "repo-agent-ttyd-001",
-  "host": "ttyd001.example.com",
-  "url": "https://ttyd001.example.com",
-  "status": "free",
-  "sessionId": null
+"slot": "001",
+"name": "ttyd001",
+"serviceName": "ttyd-001",
+"containerName": "repo-agent-ttyd-001",
+"host": "ttyd001.example.com",
+"url": "https://ttyd001.example.com",
+"status": "free",
+"sessionId": null
 }
 
 Slot status:
@@ -398,8 +398,8 @@ Chỉ start slot khi user launch.
 Khi nhận:
 
 {
-  "repoId": "repo_001",
-  "agentProfileId": "agent_001"
+"repoId": "repo_001",
+"agentProfileId": "agent_001"
 }
 
 Backend làm:
@@ -436,8 +436,8 @@ Nội dung:
 REPO_AGENT_SESSION_ID=sess_001
 REPO_AGENT_SLOT=001
 REPO_AGENT_REPO_ID=repo_001
-REPO_AGENT_REPO_PATH=/repos/github/o22zalo/docker-stack-template
-REPO_AGENT_REPO_FULL_NAME=o22zalo/docker-stack-template
+REPO_AGENT_REPO_PATH=/repos/github/o22zalo/dockerstackagentscode
+REPO_AGENT_REPO_FULL_NAME=o22zalo/dockerstackagentscode
 REPO_AGENT_BRANCH=main
 REPO_AGENT_AGENT_PROFILE_ID=agent_001
 REPO_AGENT_AGENT_NAME=codex
@@ -510,10 +510,10 @@ Khi user close session:
 
 Phân tách rõ:
 
-gitCredentials    -> chỉ phục vụ repo fetch/clone/pull
-agentCredentials  -> chỉ phục vụ agent auth/config
-repoCache         -> danh sách repo để Launcher chọn
-agentProfiles     -> danh sách agent để Launcher chọn
+gitCredentials -> chỉ phục vụ repo fetch/clone/pull
+agentCredentials -> chỉ phục vụ agent auth/config
+repoCache -> danh sách repo để Launcher chọn
+agentProfiles -> danh sách agent để Launcher chọn
 
 ---
 

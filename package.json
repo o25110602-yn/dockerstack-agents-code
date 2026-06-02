@@ -1,5 +1,5 @@
 {
-  "name": "docker-stack-template",
+  "name": "dockerstackagentscode",
   "version": "2.0.0",
   "description": "Modular Docker Compose template — drop-in multi-service deployment",
   "private": true,
