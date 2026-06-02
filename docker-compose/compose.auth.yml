@@ -43,6 +43,7 @@ services:
   tinyauth:
     container_name: "tinyauth"
     image: ghcr.io/steveiliop56/tinyauth:v5
+    user: "0:0"
     environment:
       TINYAUTH_APPURL: "${TINYAUTH_APP_URL:-https://auth.${DOMAIN}}"
       TINYAUTH_SERVER_PORT: "${TINYAUTH_PORT:-3000}"
