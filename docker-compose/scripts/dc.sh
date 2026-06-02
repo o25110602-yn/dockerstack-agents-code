@@ -512,32 +512,32 @@ needs_path_validation() {
   esac
 }
 
-if needs_path_validation "${1:-}" \
-   && command -v docker >/dev/null 2>&1 \
-   && [ "$HOST_PROJECT_ROOT_SOURCE" != "docker-inspect" ]; then
-  if ! docker run --rm --pull=never --entrypoint /bin/true \
-        -v "$HOST_PROJECT_ROOT:/__cb_check__:ro" alpine 2>/dev/null; then
-    echo "⚠️  HOST_PROJECT_ROOT='$HOST_PROJECT_ROOT' (source: $HOST_PROJECT_ROOT_SOURCE)" >&2
-    echo "    không tồn tại / không truy cập được trên Docker daemon host." >&2
-    if in_container; then
-      _GROUND_TRUTH="$(detect_host_root_from_inspect 2>/dev/null || true)"
-      if [ -n "$_GROUND_TRUTH" ] && [ "$_GROUND_TRUTH" != "$HOST_PROJECT_ROOT" ]; then
-        echo "    → tự sửa thành ground truth từ docker inspect: $_GROUND_TRUTH" >&2
-        HOST_PROJECT_ROOT="$_GROUND_TRUTH"
-        export HOST_PROJECT_ROOT
-        HOST_PROJECT_ROOT_SOURCE="docker-inspect-recover"
-      else
-        echo "    → không tìm được ground truth. Hãy export HOST_PROJECT_ROOT đúng path host trước khi chạy." >&2
-        echo "    Ví dụ: HOST_PROJECT_ROOT=\"\$(pwd)\" bash docker-compose/scripts/dc.sh ..." >&2
-        exit 1
-      fi
-      unset _GROUND_TRUTH
-    else
-      echo "    → đang chạy trên host nhưng path không tồn tại. Kiểm tra lại .env hoặc cd đúng project root." >&2
-      exit 1
-    fi
-  fi
-fi
+# if needs_path_validation "${1:-}" \
+#    && command -v docker >/dev/null 2>&1 \
+#    && [ "$HOST_PROJECT_ROOT_SOURCE" != "docker-inspect" ]; then
+#   if ! docker run --rm --pull=never --entrypoint /bin/true \
+#         -v "$HOST_PROJECT_ROOT:/__cb_check__:ro" alpine 2>/dev/null; then
+#     echo "⚠️  HOST_PROJECT_ROOT='$HOST_PROJECT_ROOT' (source: $HOST_PROJECT_ROOT_SOURCE)" >&2
+#     echo "    không tồn tại / không truy cập được trên Docker daemon host." >&2
+#     if in_container; then
+#       _GROUND_TRUTH="$(detect_host_root_from_inspect 2>/dev/null || true)"
+#       if [ -n "$_GROUND_TRUTH" ] && [ "$_GROUND_TRUTH" != "$HOST_PROJECT_ROOT" ]; then
+#         echo "    → tự sửa thành ground truth từ docker inspect: $_GROUND_TRUTH" >&2
+#         HOST_PROJECT_ROOT="$_GROUND_TRUTH"
+#         export HOST_PROJECT_ROOT
+#         HOST_PROJECT_ROOT_SOURCE="docker-inspect-recover"
+#       else
+#         echo "    → không tìm được ground truth. Hãy export HOST_PROJECT_ROOT đúng path host trước khi chạy." >&2
+#         echo "    Ví dụ: HOST_PROJECT_ROOT=\"\$(pwd)\" bash docker-compose/scripts/dc.sh ..." >&2
+#         exit 1
+#       fi
+#       unset _GROUND_TRUTH
+#     else
+#       echo "    → đang chạy trên host nhưng path không tồn tại. Kiểm tra lại .env hoặc cd đúng project root." >&2
+#       exit 1
+#     fi
+#   fi
+# fi
 
 # ── Execute ───────────────────────────────────────────────────
 # --env-file: ưu tiên file resolved (đã thay placeholder rỗng) để Compose
