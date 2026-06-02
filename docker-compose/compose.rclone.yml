@@ -62,7 +62,7 @@ services:
       STACK_RCLONE_EXTRA_FLAGS: "${RCLONE_EXTRA_FLAGS:-}"
     volumes:
       - ./services/rclone/restore.sh:/scripts/restore.sh:ro
-      - rclone_config:/config/rclone:ro
+      - rclone_config:/config/rclone
       - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}:/data
     networks: [app_net]
     restart: "no"
@@ -90,7 +90,7 @@ services:
       STACK_RCLONE_EXTRA_FLAGS: "${RCLONE_EXTRA_FLAGS:-}"
     volumes:
       - ./services/rclone/sync.sh:/scripts/sync.sh:ro
-      - rclone_config:/config/rclone:ro
+      - rclone_config:/config/rclone
       - ${DOCKER_VOLUMES_ROOT:-./.docker-volumes}:/data
     networks: [app_net]
     restart: unless-stopped
