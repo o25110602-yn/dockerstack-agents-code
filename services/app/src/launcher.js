@@ -100,11 +100,12 @@ async function reserveFreeSlot(sessionId) {
     let tx;
     try {
       tx = await ref.transaction((cur) => {
-        if (!cur || cur.status !== "free") return; // abort: race
-        cur.status = "reserved";
-        cur.sessionId = sessionId;
-        cur.updatedAt = nowIso();
-        return cur;
+        const data = cur || cur0;
+        if (!data || data.status !== "free") return; // abort: race
+        data.status = "reserved";
+        data.sessionId = sessionId;
+        data.updatedAt = nowIso();
+        return data;
       }, undefined, false);
     } catch (err) {
       failures.push({ slot, reason: "tx-threw", err: String(err.message || err) });
