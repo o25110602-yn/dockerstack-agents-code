@@ -1,4 +1,4 @@
-
+scripts/cloudflare-cname-bulk.js
 project-api.http
 *credentials.json
 -gitignore/**
@@ -146,3 +146,5 @@ env-dockerstackagentscode-default-rtdb-tailscale-keep-ip-export.json
 # Editor
 
 # OS
+scripts/cloudflare-cname-bulk.js
+scripts/cloudflare-cname-bulk.js

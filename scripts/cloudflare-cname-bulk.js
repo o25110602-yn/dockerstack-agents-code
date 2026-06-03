@@ -14,7 +14,8 @@
 //        → script này có lệnh `create-all` / `delete-all`.
 //
 // Yêu cầu env (.env):
-//   CLOUDFLARED_API_TOKEN     — Cloudflare API token có quyền edit DNS
+//   CLOUDFLARE_EMAIL          — Email tài khoản Cloudflare
+//   CLOUDFLARE_API_KEY        — Global API Key (My Profile → API Tokens → Global API Key)
 //   CLOUDFLARED_ZONE_ID       — Zone ID của domain
 //   DOMAIN                    — domain root (ví dụ example.com)
 //   CLOUDFLARED_TUNNEL_ID     — UUID tunnel (xem `cloudflared tunnel list`)
@@ -29,9 +30,9 @@
 //   node scripts/cloudflare-cname-bulk.js list
 //   node scripts/cloudflare-cname-bulk.js create ttyd047
 //   node scripts/cloudflare-cname-bulk.js delete ttyd047
-//   node scripts/cloudflare-cname-bulk.js verify       # smoke test API token
+//   node scripts/cloudflare-cname-bulk.js verify       # smoke test credentials
 //
-// Exit code: 0 OK, 1 partial fail, 2 fatal (token/zone sai).
+// Exit code: 0 OK, 1 partial fail, 2 fatal (credentials/zone sai).
 
 "use strict";
 
@@ -58,10 +59,13 @@ function loadDotEnv(file) {
 }
 
 const ENV_FILE = process.env.ENV_FILE || path.resolve(__dirname, "..", ".env");
-loadDotEnv(ENV_FILE);
+// loadDotEnv(ENV_FILE);
 
-const API_TOKEN = process.env.CLOUDFLARED_API_TOKEN || "";
-const ZONE_ID = process.env.CLOUDFLARED_ZONE_ID || "835d2e2cc167da44769841a15c8beb3c";
+// ── Auth: Global API Key + Email (thay vì API Token) ──────────────
+const CF_EMAIL = process.env.CLOUDFLARE_EMAIL || "o25.11.0602@gmail.com";
+const CF_API_KEY = process.env.CLOUDFLARE_API_KEY || "";
+
+const ZONE_ID = process.env.CLOUDFLARED_ZONE_ID || "38727490003b5e58bca1d7a69ebe35f7";
 const DOMAIN = process.env.DOMAIN || "dockerstackagentscode.dpdns.org";
 const TUNNEL_ID = process.env.CLOUDFLARED_TUNNEL_ID || "9d241926-7a36-441a-bfac-2ff960946ea9";
 const TOTAL_SLOTS = parseInt(process.env.REPO_AGENT_TOTAL_SLOTS || "100", 10);
@@ -74,7 +78,8 @@ function pad3(n) {
 
 function preflight() {
   const errors = [];
-  if (!API_TOKEN) errors.push("CLOUDFLARED_API_TOKEN is empty");
+  if (!CF_EMAIL) errors.push("CLOUDFLARE_EMAIL is empty");
+  if (!CF_API_KEY) errors.push("CLOUDFLARE_API_KEY is empty (Global API Key)");
   if (!ZONE_ID) errors.push("CLOUDFLARED_ZONE_ID is empty");
   if (!DOMAIN) errors.push("DOMAIN is empty");
   if (!TUNNEL_ID) errors.push("CLOUDFLARED_TUNNEL_ID is empty (UUID hoặc <id>.cfargotunnel.com)");
@@ -82,7 +87,7 @@ function preflight() {
     console.error("❌ Pre-flight failed:");
     for (const e of errors) console.error("   -", e);
     console.error(`\nĐọc env từ: ${ENV_FILE}`);
-    console.error("Xem .env.example phần ── CLOUDFLARED ── để biết các biến cần.");
+    console.error("Cần các biến: CLOUDFLARE_EMAIL, CLOUDFLARE_API_KEY, CLOUDFLARED_ZONE_ID, DOMAIN, CLOUDFLARED_TUNNEL_ID");
     process.exit(2);
   }
 }
@@ -96,7 +101,9 @@ function cfRequest(method, urlPath, body) {
       port: 443,
       path: urlPath,
       headers: {
-        Authorization: `Bearer ${API_TOKEN}`,
+        // Global API Key auth dùng X-Auth-Email + X-Auth-Key
+        "X-Auth-Email": CF_EMAIL,
+        "X-Auth-Key": CF_API_KEY,
         "Content-Type": "application/json",
         "User-Agent": "dockerstackagentscode-cname-bulk/1.0",
       },
@@ -166,12 +173,13 @@ async function cmdVerify() {
   preflight();
   const res = await cfRequest("GET", `/client/v4/zones/${ZONE_ID}`);
   if (!res.json || !res.json.success) {
-    console.error("❌ Token / Zone verify failed:", res.status, res.text);
+    console.error("❌ Email / Global API Key / Zone verify failed:", res.status, res.text);
     process.exit(2);
   }
-  console.log("✅ API token + zone OK");
+  console.log("✅ Global API Key + email + zone OK");
   console.log(`   Zone     : ${res.json.result.name}`);
   console.log(`   Plan     : ${res.json.result.plan && res.json.result.plan.name}`);
+  console.log(`   Email    : ${CF_EMAIL}`);
   console.log(`   Domain   : ${DOMAIN}`);
   console.log(`   Tunnel   : ${TUNNEL_TARGET}`);
 }
@@ -305,7 +313,7 @@ const commands = {
     console.log("Usage: node scripts/cloudflare-cname-bulk.js <command> [args]");
     console.log("");
     console.log("Commands:");
-    console.log("  verify              Verify API token + zone access");
+    console.log("  verify              Verify Global API Key + email + zone access");
     console.log("  list                List all ttyd*+wildcard CNAME records");
     console.log("  create-wildcard     Create *.${DOMAIN} CNAME (recommended)");
     console.log("  delete-wildcard     Delete *.${DOMAIN} CNAME");
