@@ -141,6 +141,7 @@ function makeFirebaseMock() {
 // Refactor 2026-06: launcher gọi `docker run`/`docker rm` qua docker-runner,
 // không còn `bash dc.sh ...`. Mock cả 2.
 
+const activeContainers = new Set();
 const calls = [];
 const origExecFile = child_process.execFile;
 function installExecFileMock() {
@@ -156,14 +157,29 @@ function installExecFileMock() {
     }
     if (cmd === "docker") {
       if (args[0] === "run") {
+        // Track the container name to simulate it running
+        const nameIdx = args.indexOf("--name");
+        if (nameIdx !== -1 && nameIdx + 1 < args.length) {
+          activeContainers.add(args[nameIdx + 1]);
+        }
         return cb(null, "mockcontainerid0123456789abcdef\n", "");
       }
-      if (args[0] === "inspect") {
-        const err = new Error("No such container");
-        err.code = 1;
-        return cb(err, "", "");
+      if (args[0] === "rm") {
+        const containerName = args[args.length - 1];
+        activeContainers.delete(containerName);
+        return cb(null, "", "");
       }
-      // rm/version/etc → silent success
+      if (args[0] === "inspect") {
+        const containerName = args[args.length - 1];
+        if (activeContainers.has(containerName)) {
+          return cb(null, `mockcontainerid0123456789abcdef|running|true\n`, "");
+        } else {
+          const err = new Error("No such container");
+          err.code = 1;
+          return cb(err, "", "");
+        }
+      }
+      // version/etc → silent success
     }
     cb(null, "", "");
   };

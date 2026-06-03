@@ -236,6 +236,18 @@ async function launch({ repoId, agentProfileId, branch, agentCredentialIds }) {
         // ignore
       }
     }
+    if (!gitHost) {
+      if (repo.provider === "github") gitHost = "github.com";
+      else if (repo.provider === "gitlab") gitHost = "gitlab.com";
+      else if (repo.provider === "azure") gitHost = "dev.azure.com";
+    }
+
+    let gitUser = gitCred.username || "";
+    if (!gitUser) {
+      if (repo.provider === "github") gitUser = "x-access-token";
+      else if (repo.provider === "gitlab") gitUser = "oauth2";
+      else gitUser = "x-access-token";
+    }
 
     // 3) Write runtime.env for slot.
     const runtimeEnv = {
@@ -253,7 +265,7 @@ async function launch({ repoId, agentProfileId, branch, agentCredentialIds }) {
       REPO_AGENT_AGENT_WORKDIR: agentProfile.workdir || "/workspace",
       REPO_AGENT_START_MODE: agentProfile.startMode || "shell",
       REPO_AGENT_GIT_PROVIDER: repo.provider || "",
-      REPO_AGENT_GIT_USERNAME: gitCred.username || "",
+      REPO_AGENT_GIT_USERNAME: gitUser,
       REPO_AGENT_GIT_TOKEN: token || "",
       REPO_AGENT_GIT_HOST: gitHost || "",
       ...mat.envExtras,
@@ -323,6 +335,38 @@ async function closeSession(sessionId) {
   return { sessionId, slot, status: "closed" };
 }
 
+async function checkAndReleaseInterruptedSlots() {
+  await ensureSlotPoolInitialized();
+  const all = (await fb.readPath("/repoAgent/ttydSlots")) || {};
+  const released = [];
+  for (const [slot, cur] of Object.entries(all)) {
+    if (!cur || cur.status !== "busy") continue;
+    try {
+      const inspect = await dockerRunner.inspectSlotContainer(slot).catch(() => ({ exists: false }));
+      if (!inspect.exists || !inspect.running) {
+        // Container is not running, but status is busy in DB -> Interrupted!
+        await stopSlotContainer(slot).catch(() => null);
+        agentCreds.clearSlotInjectedFiles(slot);
+        agentCreds.resetSlotRuntimeEnv(slot);
+        if (cur.sessionId) {
+          await fb
+            .updatePath(`/repoAgent/sessions/${cur.sessionId}`, {
+              status: "interrupted",
+              closedAt: nowIso(),
+              closedReason: "container-not-running",
+            })
+            .catch(() => null);
+        }
+        await setSlotStatus(slot, "free", { sessionId: null });
+        released.push(slot);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+  return released;
+}
+
 async function releaseAllSlotsOnStart() {
   await ensureSlotPoolInitialized();
   const all = (await fb.readPath("/repoAgent/ttydSlots")) || {};
@@ -331,6 +375,8 @@ async function releaseAllSlotsOnStart() {
     if (!cur || cur.status === "free") continue;
     try {
       await stopSlotContainer(slot).catch(() => null);
+      agentCreds.clearSlotInjectedFiles(slot);
+      agentCreds.resetSlotRuntimeEnv(slot);
       if (cur.sessionId) {
         await fb
           .updatePath(`/repoAgent/sessions/${cur.sessionId}`, {
@@ -362,5 +408,6 @@ module.exports = {
   containerName,
   slotUrl,
   slotHost,
+  checkAndReleaseInterruptedSlots,
   releaseAllSlotsOnStart,
 };

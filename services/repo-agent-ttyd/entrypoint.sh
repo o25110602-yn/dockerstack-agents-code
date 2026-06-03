@@ -61,6 +61,10 @@ if [ -n "${REPO_AGENT_GIT_HOST:-}" ] && [ -n "${REPO_AGENT_GIT_TOKEN:-}" ]; then
   
   git config --global credential.helper 'store --file=/root/.git-credentials'
   
+  # Configure URL rewrites so git commands automatically use the token
+  git config --global "url.https://${GIT_USER}:${REPO_AGENT_GIT_TOKEN}@${REPO_AGENT_GIT_HOST}/.insteadOf" "https://${REPO_AGENT_GIT_HOST}/"
+  git config --global "url.http://${GIT_USER}:${REPO_AGENT_GIT_TOKEN}@${REPO_AGENT_GIT_HOST}/.insteadOf" "http://${REPO_AGENT_GIT_HOST}/"
+  
   if ! git config --global user.name >/dev/null 2>&1; then
     git config --global user.name "${GIT_USER}"
   fi
