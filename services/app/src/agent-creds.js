@@ -98,6 +98,7 @@ function materializeForSlot(slot, credentials) {
           source: containerSource,
           targetPath: target,
           mode: cred.mode || "0600",
+          name: cred.name || "",
           // Backward-compatible aliases (some older entrypoints read these).
           hostPath: hostFile,
           containerPath: target,
@@ -109,7 +110,7 @@ function materializeForSlot(slot, credentials) {
         const hostFile = path.join(slotInjectedDir, safeName);
         const buf = Buffer.from(cred.scriptBase64 || "", "base64");
         fs.writeFileSync(hostFile, buf, { mode: 0o700 });
-        scripts.push({ hostPath: hostFile, name: safeName });
+        scripts.push({ hostPath: hostFile, name: safeName, credentialName: cred.name || "" });
         break;
       }
       case "env": {

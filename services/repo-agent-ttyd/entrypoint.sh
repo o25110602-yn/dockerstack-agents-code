@@ -125,11 +125,16 @@ apply_manifest() {
       src=$(jq -r ".files[$i].source // .files[$i].hostPath // empty" "$manifest")
       tgt=$(jq -r ".files[$i].targetPath // empty" "$manifest")
       mode=$(jq -r ".files[$i].mode // \"0600\"" "$manifest")
+      name=$(jq -r ".files[$i].name // empty" "$manifest")
       if [ -n "$src" ] && [ -n "$tgt" ] && [ -f "$src" ]; then
         mkdir -p "$(dirname "$tgt")" 2>/dev/null || true
         if cp "$src" "$tgt"; then
           chmod "$mode" "$tgt" 2>/dev/null || true
-          log "credential file: $src -> $tgt (mode $mode)"
+          if [ -n "$name" ]; then
+            log "credential file ($name): $src -> $tgt (mode $mode)"
+          else
+            log "credential file: $src -> $tgt (mode $mode)"
+          fi
         else
           log "WARN: failed to copy $src -> $tgt"
         fi
@@ -141,7 +146,13 @@ apply_manifest() {
   # Run bootstrap scripts in name order
   for s in "$INJECTED_DIR"/bootstrap-*.sh; do
     [ -f "$s" ] || continue
-    log "running bootstrap script: $s"
+    s_base=$(basename "$s")
+    cred_name=$(jq -r ".scripts[] | select(.name == \"$s_base\") | .credentialName // empty" "$manifest" 2>/dev/null || true)
+    if [ -n "$cred_name" ]; then
+      log "running bootstrap script ($cred_name): $s"
+    else
+      log "running bootstrap script: $s"
+    fi
     sh "$s" || log "WARN: bootstrap script failed: $s"
   done
 }
