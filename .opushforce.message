@@ -1,23 +1,18 @@
-feat:Bổ sung tính năng lựa chọn chi tiết Agent Credentials khi launch ttyd
+feat:Bổ sung trường name của agent credentials vào manifest và in ra logs của ttyd container
 
 Input của user:
-chức năng này chưa hoạt động được: UI lúc lauch ttyd, nếu 1 loại agent có nhiều credentials, thì chưa có chức năng chọn, phải thiết kế, chọn được credentials cụ thẻ nào để lauch ttyd, thực hiện xong push branch mới (các thông tin tự tạo)
+hãy bổ sung thêm name của agent credentials
 
 Nguyên nhân gốc:
-- Giao diện radio button chọn Agent sử dụng sự kiện `@change` để gán toàn bộ credentials của Agent đó vào `selectedCredIds`, khiến cho người dùng không thể bỏ chọn hoặc chọn riêng lẻ từng credential mong muốn một cách ổn định do cơ chế binding của input radio dạng ẩn (`hidden`).
-- Sự thiếu hụt của cơ chế watch (`$watch`) hoặc reactive tracking trong AlpineJS đối với thuộc tính getter khi thay đổi Agent dẫn đến việc đồng bộ danh sách credentials đã chọn không mượt mà và dễ lỗi.
-- Checkbox sử dụng trực tiếp `x-model` dạng mảng đôi khi hoạt động không chính xác trong một số phiên bản AlpineJS khi nạp động các credential qua API.
+Trước đây manifest JSON được ghi vào slot container không lưu thông tin tên (name) của credentials, nên tập tin chạy entrypoint.sh chỉ in log sao chép file/chạy script dưới dạng các đường dẫn vật lý mà không có tên định danh tường minh.
 
 Cách đã chỉnh để khắc phục:
-- Loại bỏ sự kiện `@change` thủ công trên radio button trong `index.html`.
-- Chuyển đổi `get selectedAgentCredentials` thành một method bình thường `selectedAgentCredentials()` trong `launcher.js` và `index.html` để cải thiện tính phản xạ (reactivity) của AlpineJS.
-- Sử dụng cơ chế watcher (`this.$watch('selectedAgentId', ...)`) trong hàm `init()` của Alpine để thiết lập/reset chính xác danh sách credentials mặc định khi thay đổi Agent một cách mượt mà và tin cậy.
-- Thay thế binding `x-model` trên checkbox bằng binding `:checked` và `@change` trực tiếp, giúp quản lý mảng `selectedCredIds` một cách chính xác, minh bạch.
-- Bổ sung thông tin cảnh báo `(chưa chọn credential nào)` trên giao diện ở nút Launch nếu Agent có credentials nhưng người dùng bỏ chọn tất cả.
+- Trong `services/app/src/agent-creds.js`, bổ sung trường `name` khi tạo danh sách file (files) và `credentialName` khi tạo danh sách script (scripts) để lưu vào manifest JSON.
+- Trong `services/repo-agent-ttyd/entrypoint.sh`, trích xuất giá trị `name` (đối với file) và `credentialName` (đối với script) từ manifest JSON để in ra log với định dạng `credential file ($name): ...` và `running bootstrap script ($cred_name): ...`.
 
 File đã áp fix bug:
-- services/app/public/index.html
-- services/app/public/launcher.js
+- services/app/src/agent-creds.js
+- services/repo-agent-ttyd/entrypoint.sh
 
-Trả lời câu hỏi "chức năng này chưa hoạt động được...":
-Đã sửa đổi hoàn chỉnh chức năng chọn Agent Credentials khi launch ttyd. Hệ thống hoạt động mượt mà, hỗ trợ bật/tắt chính xác các credentials cụ thể mà người dùng chọn thông qua checkbox. Toàn bộ test suite (mock-flow, http-integration) đã chạy qua thành công.
+Trả lời câu hỏi "hãy bổ sung thêm name của agent credentials":
+Đã cập nhật việc lưu trữ tên credentials vào manifest JSON và sửa đổi script khởi tạo của slot container (entrypoint.sh) để tự động đọc và in kèm tên của credentials khi inject file hoặc chạy bootstrap script.
