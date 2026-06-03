@@ -26,7 +26,7 @@ services:
       litestream-restore:
         condition: service_completed_successfully
 
-  # tinyauth: # ← THÊM
-  #   depends_on:
-  #     rclone-restore:
-  #       condition: service_completed_successfully
+  tinyauth: # ← THÊM
+    depends_on:
+      rclone-restore:
+        condition: service_completed_successfully
