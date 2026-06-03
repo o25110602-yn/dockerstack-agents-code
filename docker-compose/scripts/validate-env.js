@@ -247,6 +247,7 @@ for (const [name, clientKey, secretKey] of [
   }
 }
 for (const key of [
+  "TINYAUTH_SECRET",
   "TINYAUTH_DISABLE_CONTINUE",
   "TINYAUTH_TRUST_PROXY",
   "TINYAUTH_ALLOWED_USERS",

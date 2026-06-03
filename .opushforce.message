@@ -1,27 +1,19 @@
-feat:Cấu hình TINYAUTH_AUTH_SECRET để tinyauth duy trì session người dùng
+feat:Thiết lập giá trị mặc định cho TINYAUTH_AUTH_SECRET trực tiếp trong compose.auth.yml
 
 Input của user:
-chỉnh thêm chỗ này, mục đích để  tinyauth nhớ session: hãy tạo giá trị mặc định theo hướng dẫn, tôi cần thay đổi sẽ cạp nhật env sau: Fix nhanh
-1. Sinh secret:
-bashopenssl rand -hex 32
-2. Thêm vào .env:
-envTINYAUTH_SECRET=abc123...your_generated_value
-3. Thêm vào compose.auth.yml trong block environment của tinyauth:
-yamlTINYAUTH_AUTH_SECRET: "${TINYAUTH_SECRET}"
+TINYAUTH_AUTH_SECRET: "${TINYAUTH_SECRET}", docker-compose/compose.auth.yml, => thêm mặc định trong đây luôn, khỏi validate cái biến này
 
 Nguyên nhân gốc:
-Tinyauth cần cấu hình mã khóa bí mật cookie để có thể nhớ và duy trì session đăng nhập của người dùng ổn định qua các phiên chạy.
+Để tinh giản quy trình cấu hình, tránh việc bắt buộc khai báo biến TINYAUTH_SECRET trong file .env và bỏ qua kiểm tra xác thực của validate-env.js, ta cần đưa giá trị khóa bí mật mặc định làm fallback trực tiếp bên trong compose.auth.yml.
 
 Cách đã chỉnh để khắc phục:
-- Sinh ngẫu nhiên mã hex 32-bytes làm giá trị mặc định cho `TINYAUTH_SECRET`.
-- Thêm khai báo mặc định `TINYAUTH_SECRET` vào file `.env.example`.
-- Cho phép `TINYAUTH_SECRET` hoạt động hợp lệ bằng cách loại bỏ nó khỏi danh sách kiểm tra deprecated trong file script kiểm thử môi trường `docker-compose/scripts/validate-env.js`.
-- Bổ sung cấu hình `TINYAUTH_AUTH_SECRET: "${TINYAUTH_SECRET}"` vào phần cấu hình môi trường của container `tinyauth` trong file `docker-compose/compose.auth.yml`.
+- Cập nhật cấu hình trong `docker-compose/compose.auth.yml` để sử dụng cấu trúc fallback: `TINYAUTH_AUTH_SECRET: "${TINYAUTH_SECRET:-534befd3e06e3279842f8838fce04d237e9c285cf36ad02a69998ab2f8837b0d}"`.
+- Hoàn tác cấu hình của `.env.example` và script kiểm tra `docker-compose/scripts/validate-env.js` về trạng thái trước đó.
 
 File đã áp fix bug:
+- docker-compose/compose.auth.yml
 - .env.example
 - docker-compose/scripts/validate-env.js
-- docker-compose/compose.auth.yml
 
-Trả lời câu hỏi "chỉnh thêm chỗ này, mục đích để tinyauth nhớ session...":
-Đã sinh mã secret mặc định thành công, cấu hình liên kết sang biến TINYAUTH_AUTH_SECRET của container trong compose.auth.yml để Tinyauth lưu giữ session của người dùng đúng theo thiết kế. Nhánh git đã được cập nhật và push lên remote.
+Trả lời câu hỏi "TINYAUTH_AUTH_SECRET...":
+Đã thiết lập giá trị mặc định trực tiếp làm fallback trong file compose.auth.yml và hoàn trả lại các file cấu hình env/script kiểm tra môi trường về trạng thái cũ như yêu cầu.
