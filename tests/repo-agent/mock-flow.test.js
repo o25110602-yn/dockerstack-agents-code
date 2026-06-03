@@ -160,29 +160,33 @@ function makeFirebaseMock() {
 
 // ── execFile mock ────────────────────────────────────────────────────
 
+let currentHandlers = {};
 const calls = [];
 const origExecFile = child_process.execFile;
 
 function installExecFileMock(handlers) {
-  child_process.execFile = function (cmd, args, opts, cb) {
-    if (typeof opts === "function") {
-      cb = opts;
-      opts = {};
-    }
-    calls.push({ cmd, args, opts });
-    const handler = handlers[cmd];
-    if (handler) {
-      const result = handler({ cmd, args, opts });
-      if (result instanceof Error) return cb(result, "", "");
-      return cb(null, result || "", "");
-    }
-    // Default: succeed silently.
-    cb(null, "", "");
-  };
+  currentHandlers = handlers;
+  if (child_process.execFile === origExecFile) {
+    child_process.execFile = function (cmd, args, opts, cb) {
+      if (typeof opts === "function") {
+        cb = opts;
+        opts = {};
+      }
+      calls.push({ cmd, args, opts });
+      const handler = currentHandlers[cmd];
+      if (handler) {
+        const result = handler({ cmd, args, opts });
+        if (result instanceof Error) return cb(result, "", "");
+        return cb(null, result || "", "");
+      }
+      cb(null, "", "");
+    };
+  }
 }
 
 function restoreExecFile() {
   child_process.execFile = origExecFile;
+  currentHandlers = {};
 }
 
 // ── Inject mocks into require.cache before loading app modules ───────
@@ -1137,6 +1141,92 @@ async function testConfigDefaults() {
   else delete process.env.REPO_AGENT_TTYD_IMAGE;
 }
 
+async function testReleaseInterruptedSlots() {
+  section("3.0 — Auto-release Interrupted Busy Slots");
+
+  // Initialize pool
+  await launcher.ensureSlotPoolInitialized();
+
+  // Setup: Let's manually set slot "001" to busy with a mock sessionId
+  const sessionId = "sess_interrupted_test_001";
+  await fbMock.writePath(`/repoAgent/ttydSlots/001`, {
+    slot: "001",
+    name: "ttyd-001",
+    status: "busy",
+    sessionId: sessionId,
+    containerId: "mockcontainer_001",
+    updatedAt: new Date().toISOString(),
+  });
+  await fbMock.writePath(`/repoAgent/sessions/${sessionId}`, {
+    id: sessionId,
+    slot: "001",
+    status: "running",
+    createdAt: new Date().toISOString(),
+  });
+
+  // Mock docker inspect to return "No such container" (container dead/interrupted)
+  installExecFileMock({
+    docker: ({ args }) => {
+      if (args[0] === "inspect") {
+        const err = new Error("No such container");
+        err.code = 1;
+        return err;
+      }
+      return "";
+    }
+  });
+
+  // Run cleanup
+  const released = await launcher.checkAndReleaseInterruptedSlots();
+  expectEq("released array contains 001", released, ["001"]);
+
+  // Verify status in DB
+  const slot001 = await fbMock.readPath("/repoAgent/ttydSlots/001");
+  expectEq("slot 001 status is free", slot001.status, "free");
+  expectEq("slot 001 sessionId is undefined", slot001.sessionId, undefined);
+
+  const session = await fbMock.readPath(`/repoAgent/sessions/${sessionId}`);
+  expectEq("session status is interrupted", session.status, "interrupted");
+  expectEq("session closedReason is container-not-running", session.closedReason, "container-not-running");
+
+  // Part 2: If container is running, it should NOT release the slot
+  const sessionIdActive = "sess_active_test_002";
+  await fbMock.writePath(`/repoAgent/ttydSlots/002`, {
+    slot: "002",
+    name: "ttyd-002",
+    status: "busy",
+    sessionId: sessionIdActive,
+    containerId: "mockcontainer_002",
+    updatedAt: new Date().toISOString(),
+  });
+  await fbMock.writePath(`/repoAgent/sessions/${sessionIdActive}`, {
+    id: sessionIdActive,
+    slot: "002",
+    status: "running",
+    createdAt: new Date().toISOString(),
+  });
+
+  // Mock docker inspect to return running=true
+  installExecFileMock({
+    docker: ({ args }) => {
+      if (args[0] === "inspect") {
+        return "mockcontainer_002|running|true\n";
+      }
+      return "";
+    }
+  });
+
+  const releasedActive = await launcher.checkAndReleaseInterruptedSlots();
+  expectEq("releasedActive array is empty", releasedActive, []);
+
+  const slot002 = await fbMock.readPath("/repoAgent/ttydSlots/002");
+  expectEq("slot 002 status is still busy", slot002.status, "busy");
+  expectEq("slot 002 sessionId is still active", slot002.sessionId, sessionIdActive);
+
+  const sessionActive = await fbMock.readPath(`/repoAgent/sessions/${sessionIdActive}`);
+  expectEq("sessionActive status is still running", sessionActive.status, "running");
+}
+
 // ────────────────────────────────────────────────────────────────────
 // Final summary
 // ────────────────────────────────────────────────────────────────────
@@ -1149,6 +1239,7 @@ async function main() {
   await testGitFlow();
   await testLaunchAndClose();
   await testConfigDefaults();
+  await testReleaseInterruptedSlots();
 
   // ── Final summary ──────────────────────────────────────────────────
   restoreExecFile();

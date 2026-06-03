@@ -1,0 +1,29 @@
+feat:Bổ sung tính năng chọn credentials, lưu git credentials cho container và auto release busy slots
+
+Input của user:
+- Lúc lauche ttyd agent: Bổ sung lưu thông tin remote url với credentials, để agent có thể commit, thao tác với url
+- UI lúc lauch ttyd, nếu 1 loại agent có nhiều credentials, thì chưa có chức năng chọn, phải thiết kế, chọn được credentials cụ thẻ nào để lauch ttyd
+- Phần Slots, hiện nếu session ngắt ngang, thì chưa có chức năng để release các slot đang busy, hãy bổ sung chức năng này để thực hiện, và sẽ thực hiện tự động khi start server lên.
+
+Nguyên nhân gốc:
+- Chưa tích hợp cơ chế lưu credentials của git riêng biệt cho từng slot container (trước đây lưu chung trên remote url của thư mục code dùng chung gây xung đột phiên chạy đồng thời).
+- UI giao diện chọn credentials nạp vào slot lúc launch ttyd chưa hiển thị chi tiết thông tin và cơ chế chọn cụ thể của từng agent.
+- Chưa có tiến trình giám sát trạng thái container docker thực tế so với database để giải phóng các slot "busy" khi container đã tắt/lỗi đột ngột.
+
+Cách đã chỉnh để khắc phục:
+- Điều chỉnh `repo-store.js` để trả remote URL nguyên bản không chứa token trên ổ đĩa máy chủ (host) nhằm bảo mật và tránh xung đột đồng thời.
+- Bổ sung cấu hình `url.insteadOf` vào global git config riêng biệt bên trong mỗi slot container tại `entrypoint.sh` và bổ sung fallback lấy host, username mặc định tại `launcher.js`. Qua đó, agent có thể thao tác commit, push trực tiếp bằng token của riêng slot đó.
+- Thiết kế giao diện chọn Credentials trực quan trên `index.html` với checkbox, hiển thị đầy đủ thông tin chi tiết (path, keys) và các thẻ phân loại rực rỡ, kèm nút Chọn nhanh tất cả / Bỏ chọn hết.
+- Viết hàm `checkAndReleaseInterruptedSlots` kiểm tra và giải phóng các slot "busy" có container không hoạt động. Tích hợp chạy tự động định kỳ mỗi 15 giây, chạy khi khởi động server (`app.listen`) và khi tải danh sách slots (`GET /api/slots`).
+
+File đã áp fix bug:
+- services/app/src/repo-store.js
+- services/repo-agent-ttyd/entrypoint.sh
+- services/app/src/launcher.js
+- services/app/public/index.html
+- services/app/src/server.js
+- tests/repo-agent/mock-flow.test.js
+- tests/repo-agent/http-integration.test.js
+
+Trả lời câu hỏi "Hãy tiếp tục task này (Có một số code đã thay đổi, nhưng chưa hoàn thành)":
+Đã tiếp tục và hoàn thiện toàn bộ 3 chức năng được yêu cầu, bổ sung cơ chế lưu git credentials cô lập cho slot container thông qua `insteadOf`, thiết kế lại giao diện lựa chọn credentials chi tiết, và lập watchdog tự động giải phóng các slot busy bị ngắt ngang. Toàn bộ 88 bài test kiểm thử đã chạy và vượt qua thành công.

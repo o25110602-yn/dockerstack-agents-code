@@ -91,9 +91,9 @@ async function cloneOrPull({ repo, gitCredential }) {
     });
   }
 
-  // Modified by agent: Do NOT strip token from origin URL on disk so that
-  // the slot/agent can perform git push directly using the remote origin URL.
-  /*
+  // Reset remote URL to clean/unauthenticated clone URL on disk so that
+  // individual slot containers can inject their own credentials at runtime
+  // (via git credential helper/url insteadOf) without concurrency conflicts.
   try {
     await run(
       "git",
@@ -103,7 +103,6 @@ async function cloneOrPull({ repo, gitCredential }) {
   } catch {
     // non-fatal
   }
-  */
 
   return { localPath: target };
 }

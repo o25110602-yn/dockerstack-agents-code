@@ -556,6 +556,7 @@ app.get(
   "/api/slots",
   wrap(async (_req, res) => {
     await launcher.ensureSlotPoolInitialized();
+    await launcher.checkAndReleaseInterruptedSlots().catch(() => null);
     const all = (await fb.readPath("/repoAgent/ttydSlots")) || {};
     res.json({
       items: Object.values(all)
@@ -689,7 +690,21 @@ app.listen(PORT, () => {
     .then(() => launcher.ensureSlotPoolInitialized())
     .then(() => ensureDefaultAgentProfiles())
     .then(() => launcher.releaseAllSlotsOnStart())
-    .then((resetList) => log("info", `Firebase + slot pool + default agents ready. Auto-released ${resetList.length} slots on boot.`, { resetList }))
+    .then((resetList) => {
+      log("info", `Firebase + slot pool + default agents ready. Auto-released ${resetList.length} slots on boot.`, { resetList });
+      // Periodically clean up any interrupted busy slots every 15 seconds.
+      setInterval(() => {
+        launcher.checkAndReleaseInterruptedSlots()
+          .then((released) => {
+            if (released.length > 0) {
+              log("info", "auto-released-interrupted-slots", { count: released.length, slots: released });
+            }
+          })
+          .catch((err) => {
+            log("error", "auto-release-interrupted-slots-failed", { err: String(err.message || err) });
+          });
+      }, 15000);
+    })
     .catch((err) =>
       log("error", "init-failed", { err: String(err.message || err) })
     );
