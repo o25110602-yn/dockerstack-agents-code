@@ -20,7 +20,7 @@
 #  để user biết cần cài thêm.
 # ================================================================
 
-FROM tsl0922/ttyd:1.7.7-alpine
+FROM tsl0922/ttyd:1.7.8-alpine
 
 # Set bash as default shell for RUN
 SHELL ["/bin/sh", "-c"]
