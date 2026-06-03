@@ -348,5 +348,30 @@ function admin() {
         // not fatal
       }
     },
+    async resetSlot(slot) {
+      if (!confirm(`Bạn có chắc muốn giải phóng (release) slot ${slot}? Việc này sẽ dừng container và hủy session đang chạy.`)) return;
+      try {
+        await this.req(`/api/admin/slots/${slot}/reset`, { method: "POST" });
+        this.flash(`✓ Đã giải phóng slot ${slot}`, "info");
+        await this.loadSlots();
+      } catch (err) {
+        this.flash(`Lỗi giải phóng slot: ${err.message}`, "error");
+      }
+    },
+    async resetAllNonFreeSlots() {
+      if (!confirm("Cảnh báo: Bạn có chắc chắn muốn cưỡng bức giải phóng TẤT CẢ các slot đang bận/lỗi không? Hành động này sẽ dừng toàn bộ các sessions đang chạy.")) return;
+      try {
+        const nonFreeSlots = this.slots.filter(s => s.status !== "free").map(s => s.slot);
+        let count = 0;
+        for (const slot of nonFreeSlots) {
+          await this.req(`/api/admin/slots/${slot}/reset`, { method: "POST" }).catch(() => null);
+          count++;
+        }
+        this.flash(`✓ Đã giải phóng ${count} slots`, "info");
+        await this.loadSlots();
+      } catch (err) {
+        this.flash(`Lỗi giải phóng: ${err.message}`, "error");
+      }
+    }
   };
 }

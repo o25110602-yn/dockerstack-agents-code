@@ -457,13 +457,14 @@
         <div class="grid grid-cols-10 gap-1.5 text-[10px] font-mono">
           <template x-for="s in slots" :key="s.slot">
             <div
-              class="border rounded p-1.5 text-center"
-              :title="`${s.slot} — ${s.status}${s.sessionId ? ' / ' + s.sessionId : ''}`"
+              class="border rounded p-1.5 text-center transition"
+              @click="s.status !== 'free' && resetSlot(s.slot)"
+              :title="s.status === 'free' ? `Slot ${s.slot} (Free)` : `Click để giải phóng slot ${s.slot} — Trạng thái: ${s.status}${s.sessionId ? ' / Session: ' + s.sessionId : ''}`"
               :class="{
                 'bg-emerald-50 border-emerald-300': s.status === 'free',
-                'bg-amber-50 border-amber-300': ['reserved','cloning','starting','stopping'].includes(s.status),
-                'bg-indigo-50 border-indigo-300': s.status === 'busy',
-                'bg-red-50 border-red-300': s.status === 'error'
+                'bg-amber-50 border-amber-300 cursor-pointer hover:bg-amber-100': ['reserved','cloning','starting','stopping'].includes(s.status),
+                'bg-indigo-50 border-indigo-300 cursor-pointer hover:bg-indigo-100': s.status === 'busy',
+                'bg-red-50 border-red-300 cursor-pointer hover:bg-red-100': s.status === 'error'
               }"
             >
               <div class="font-bold" x-text="s.slot"></div>
@@ -471,11 +472,20 @@
             </div>
           </template>
         </div>
-        <div class="mt-3 text-xs text-slate-500 flex gap-4">
-          <span>Total: <span x-text="slots.length"></span></span>
-          <span>Free: <span x-text="slots.filter(s=>s.status==='free').length"></span></span>
-          <span>Busy: <span x-text="slots.filter(s=>s.status==='busy').length"></span></span>
-          <span>Error: <span x-text="slots.filter(s=>s.status==='error').length"></span></span>
+        <div class="mt-4 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex gap-4">
+            <span>Total: <span x-text="slots.length"></span></span>
+            <span>Free: <span x-text="slots.filter(s=>s.status==='free').length"></span></span>
+            <span>Busy: <span x-text="slots.filter(s=>s.status==='busy').length"></span></span>
+            <span>Error: <span x-text="slots.filter(s=>s.status==='error').length"></span></span>
+          </div>
+          <button
+            @click="resetAllNonFreeSlots()"
+            x-show="slots.some(s => s.status !== 'free')"
+            class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition font-semibold"
+          >
+            ⚠️ Release All Non-Free Slots
+          </button>
         </div>
       </section>
     </div>

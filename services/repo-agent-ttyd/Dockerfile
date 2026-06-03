@@ -15,6 +15,7 @@ ENV TZ=UTC
 # ── System packages ───────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
+    tmux \
     git \
     curl \
     wget \
@@ -30,6 +31,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nodejs \
     npm \
  && ln -sf /usr/bin/fdfind /usr/local/bin/fd \
+ && echo "set -g status off" > /etc/tmux.conf \
+ && echo "set -g mouse on" >> /etc/tmux.conf \
+ && echo "set -g history-limit 50000" >> /etc/tmux.conf \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
