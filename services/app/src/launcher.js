@@ -17,6 +17,7 @@ const { genId, nowIso, pad3 } = require("./util");
 const repoStore = require("./repo-store");
 const agentCreds = require("./agent-creds");
 const dockerRunner = require("./docker-runner");
+const { DEFAULT_AGY_SETTINGS_TEMPLATE  } = require("./agy-settings-template");
 
 const TOTAL_SLOTS = parseInt(process.env.REPO_AGENT_TOTAL_SLOTS || "100", 10);
 const DOMAIN = process.env.DOMAIN || "localhost";
@@ -105,14 +106,18 @@ async function reserveFreeSlot(sessionId) {
     // Atomic CAS — applyLocally:false để callback luôn nhận server-truth.
     let tx;
     try {
-      tx = await ref.transaction((cur) => {
-        const data = cur || cur0;
-        if (!data || data.status !== "free") return; // abort: race
-        data.status = "reserved";
-        data.sessionId = sessionId;
-        data.updatedAt = nowIso();
-        return data;
-      }, undefined, false);
+      tx = await ref.transaction(
+        (cur) => {
+          const data = cur || cur0;
+          if (!data || data.status !== "free") return; // abort: race
+          data.status = "reserved";
+          data.sessionId = sessionId;
+          data.updatedAt = nowIso();
+          return data;
+        },
+        undefined,
+        false,
+      );
     } catch (err) {
       failures.push({ slot, reason: "tx-threw", err: String(err.message || err) });
       continue;
@@ -173,97 +178,6 @@ async function stopSlotContainer(slot) {
     containerName: containerName(slot),
   });
 }
-
-const DEFAULT_AGY_SETTINGS_TEMPLATE = `{
-  // ── Giao diện ──────────────────────────────────────────────────
-  // colorScheme: "terminal" | "dark" | "light" | "solarized dark" | "solarized light"
-  //              "colorblind-friendly dark" | "colorblind-friendly light" | "tokyo night"
-  // "terminal" = dùng màu sẵn có của terminal, không override gì cả → skip màn hình chọn
-  "colorScheme": "terminal",
-
-  // renderingMode: "alt-screen" (full-screen TUI) | "inline" (stream vào history terminal)
-  "renderingMode": "alt-screen",
-
-  // ── Quyền thực thi (YOLO / fine-grained) ──────────────────────
-  // Cách 1 — Toàn bộ tự approve (dùng khi chạy trong sandbox an toàn):
-  //   Tương đương flag \`agy --dangerously-skip-permissions\`
-  "autoApprove": "all",
-
-  // Cách 2 — Whitelist từng lệnh/path (khuyến nghị cho production):
-  // "permissions": {
-  //   "allow": [
-  //     // Cho phép toàn bộ lệnh git
-  //     "command(git)",
-  //     // Cho phép npm/node
-  //     "command(npm)",
-  //     "command(node)",
-  //     "command(npx)",
-  //     // Cho phép đọc/ghi trong thư mục làm việc
-  //     "read_file(**)",
-  //     "write_file(**)",
-  //     "edit_file(**)"
-  //     // Ví dụ thêm path cụ thể:
-  //     // "read_file(/workspace)",
-  //     // "command(python3)"
-  //   ],
-  //   "deny": [
-  //     // Chặn các lệnh nguy hiểm
-  //     "command(rm -rf /)",
-  //     "command(sudo rm)",
-  //     "command(mkfs)",
-  //     "command(dd)"
-  //   ]
-  // },
-
-  // ── Model ──────────────────────────────────────────────────────
-  // Model mặc định khi khởi động. Có thể đổi trong session bằng /model
-  // Ví dụ: "gemini-3-5-flash" | "gemini-3-pro" | "claude-opus-4-6" | ...
-  // Để trống = dùng default của CLI (Gemini 3.5 Flash Medium)
-  // "model": "gemini-3-5-flash",
-
-  // ── Workspace & project discovery ─────────────────────────────
-  // Cho phép truy cập file ngoài workspace hiện tại
-  "allowNonWorkspaceAccess": true,
-
-  // ── Telemetry ─────────────────────────────────────────────────
-  // false = tắt gửi dữ liệu usage về Google
-  "enableTelemetry": false,
-
-  // ── Sandbox (Terminal Sandbox) ────────────────────────────────
-  // Bật sandbox OS-level khi AI thực thi shell commands:
-  //   Linux  → nsjail
-  //   macOS  → sandbox-exec
-  // Nên bật nếu chạy agy --dangerously-skip-permissions
-  // "sandbox": true,
-
-  // ── LaTeX rendering ───────────────────────────────────────────
-  // false = tắt render công thức LaTeX trong terminal (dùng khi terminal không hỗ trợ)
-  // Tương đương env: AGY_CLI_DISABLE_LATEX=1
-  // "enableLatex": false,
-
-  // ── Account info header ───────────────────────────────────────
-  // Ẩn email và plan tier khỏi header của CLI
-  // Tương đương env: AGY_CLI_HIDE_ACCOUNT_INFO=1
-  // "hideAccountInfo": false,
-
-  // ── Subagents ────────────────────────────────────────────────
-  // Giới hạn số subagent chạy song song (mặc định không giới hạn)
-  // "maxSubagents": 3,
-
-  // ── Custom status line ────────────────────────────────────────
-  // Script nhận JSON metadata (CWD, model, token usage, state...) để tạo status bar
-  // "statusLineScript": "/path/to/your/status-script.sh",
-
-  // ── MCP Servers ───────────────────────────────────────────────
-  // Khai báo MCP servers để dùng tools bên ngoài
-  // "mcpServers": {
-  //   "my-server": {
-  //     "command": "node",
-  //     "args": ["/path/to/mcp-server.js"],
-  //     "env": {}
-  //   }
-  // }
-}`;
 
 // ── Launch flow ───────────────────────────────────────────────────
 

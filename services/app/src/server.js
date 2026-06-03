@@ -49,10 +49,10 @@ const fb = require("./firebase");
 const { genId, nowIso, toBase64, maskToken } = require("./util");
 const gitProviders = require("./git-providers");
 const launcher = require("./launcher");
+const { DEFAULT_AGY_SETTINGS_TEMPLATE } = require("./agy-settings-template");
 
 const PORT = parseInt(process.env.PORT || "54100", 10);
-const ENABLE_REPO_AGENT =
-  String(process.env.ENABLE_REPO_AGENT || "true").toLowerCase() === "true";
+const ENABLE_REPO_AGENT = String(process.env.ENABLE_REPO_AGENT || "true").toLowerCase() === "true";
 
 const LOG_DIR = process.env.LOG_DIR || "/app/logs";
 fs.mkdirSync(LOG_DIR, { recursive: true });
@@ -127,9 +127,7 @@ function publicGitCredential(c) {
     username: c.username || "",
     orgs: c.orgs || [],
     enabled: c.enabled !== false,
-    tokenPreview: c.tokenBase64
-      ? maskToken(Buffer.from(c.tokenBase64, "base64").toString("utf8"))
-      : "",
+    tokenPreview: c.tokenBase64 ? maskToken(Buffer.from(c.tokenBase64, "base64").toString("utf8")) : "",
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -162,7 +160,7 @@ app.get(
     res.json({
       items: Object.values(all).map(publicGitCredential),
     });
-  })
+  }),
 );
 
 app.post(
@@ -191,12 +189,10 @@ app.post(
     await fb.writePath(`/repoAgent/gitCredentials/${id}`, obj);
 
     // Kick off repo refresh (non-blocking).
-    refreshReposForCredential(id).catch((err) =>
-      log("error", "auto-refresh-repos failed", { id, err: String(err) })
-    );
+    refreshReposForCredential(id).catch((err) => log("error", "auto-refresh-repos failed", { id, err: String(err) }));
 
     res.json({ ok: true, item: publicGitCredential(obj), account });
-  })
+  }),
 );
 
 app.post(
@@ -213,7 +209,7 @@ app.post(
       updatedAt: nowIso(),
     });
     res.json({ ok: true, account });
-  })
+  }),
 );
 
 app.post(
@@ -222,7 +218,7 @@ app.post(
     const id = req.params.id;
     const result = await refreshReposForCredential(id);
     res.json({ ok: true, ...result });
-  })
+  }),
 );
 
 app.patch(
@@ -237,7 +233,7 @@ app.patch(
     patch.updatedAt = nowIso();
     await fb.updatePath(`/repoAgent/gitCredentials/${id}`, patch);
     res.json({ ok: true });
-  })
+  }),
 );
 
 app.delete(
@@ -255,7 +251,7 @@ app.delete(
       await fb.updatePath("/repoAgent/repoCache", updates);
     }
     res.json({ ok: true });
-  })
+  }),
 );
 
 async function refreshReposForCredential(id) {
@@ -319,7 +315,7 @@ app.get(
         return (a.fullName || "").localeCompare(b.fullName || "");
       });
     res.json({ items });
-  })
+  }),
 );
 
 app.patch(
@@ -332,99 +328,8 @@ app.patch(
     patch.updatedAt = nowIso();
     await fb.updatePath(`/repoAgent/repoCache/${id}`, patch);
     res.json({ ok: true });
-  })
+  }),
 );
-
-const DEFAULT_AGY_SETTINGS_TEMPLATE = `{
-  // ── Giao diện ──────────────────────────────────────────────────
-  // colorScheme: "terminal" | "dark" | "light" | "solarized dark" | "solarized light"
-  //              "colorblind-friendly dark" | "colorblind-friendly light" | "tokyo night"
-  // "terminal" = dùng màu sẵn có của terminal, không override gì cả → skip màn hình chọn
-  "colorScheme": "terminal",
-
-  // renderingMode: "alt-screen" (full-screen TUI) | "inline" (stream vào history terminal)
-  "renderingMode": "alt-screen",
-
-  // ── Quyền thực thi (YOLO / fine-grained) ──────────────────────
-  // Cách 1 — Toàn bộ tự approve (dùng khi chạy trong sandbox an toàn):
-  //   Tương đương flag \`agy --dangerously-skip-permissions\`
-  "autoApprove": "all",
-
-  // Cách 2 — Whitelist từng lệnh/path (khuyến nghị cho production):
-  // "permissions": {
-  //   "allow": [
-  //     // Cho phép toàn bộ lệnh git
-  //     "command(git)",
-  //     // Cho phép npm/node
-  //     "command(npm)",
-  //     "command(node)",
-  //     "command(npx)",
-  //     // Cho phép đọc/ghi trong thư mục làm việc
-  //     "read_file(**)",
-  //     "write_file(**)",
-  //     "edit_file(**)"
-  //     // Ví dụ thêm path cụ thể:
-  //     // "read_file(/workspace)",
-  //     // "command(python3)"
-  //   ],
-  //   "deny": [
-  //     // Chặn các lệnh nguy hiểm
-  //     "command(rm -rf /)",
-  //     "command(sudo rm)",
-  //     "command(mkfs)",
-  //     "command(dd)"
-  //   ]
-  // },
-
-  // ── Model ──────────────────────────────────────────────────────
-  // Model mặc định khi khởi động. Có thể đổi trong session bằng /model
-  // Ví dụ: "gemini-3-5-flash" | "gemini-3-pro" | "claude-opus-4-6" | ...
-  // Để trống = dùng default của CLI (Gemini 3.5 Flash Medium)
-  // "model": "gemini-3-5-flash",
-
-  // ── Workspace & project discovery ─────────────────────────────
-  // Cho phép truy cập file ngoài workspace hiện tại
-  "allowNonWorkspaceAccess": true,
-
-  // ── Telemetry ─────────────────────────────────────────────────
-  // false = tắt gửi dữ liệu usage về Google
-  "enableTelemetry": false,
-
-  // ── Sandbox (Terminal Sandbox) ────────────────────────────────
-  // Bật sandbox OS-level khi AI thực thi shell commands:
-  //   Linux  → nsjail
-  //   macOS  → sandbox-exec
-  // Nên bật nếu chạy agy --dangerously-skip-permissions
-  // "sandbox": true,
-
-  // ── LaTeX rendering ───────────────────────────────────────────
-  // false = tắt render công thức LaTeX trong terminal (dùng khi terminal không hỗ trợ)
-  // Tương đương env: AGY_CLI_DISABLE_LATEX=1
-  // "enableLatex": false,
-
-  // ── Account info header ───────────────────────────────────────
-  // Ẩn email và plan tier khỏi header của CLI
-  // Tương đương env: AGY_CLI_HIDE_ACCOUNT_INFO=1
-  // "hideAccountInfo": false,
-
-  // ── Subagents ────────────────────────────────────────────────
-  // Giới hạn số subagent chạy song song (mặc định không giới hạn)
-  // "maxSubagents": 3,
-
-  // ── Custom status line ────────────────────────────────────────
-  // Script nhận JSON metadata (CWD, model, token usage, state...) để tạo status bar
-  // "statusLineScript": "/path/to/your/status-script.sh",
-
-  // ── MCP Servers ───────────────────────────────────────────────
-  // Khai báo MCP servers để dùng tools bên ngoài
-  // "mcpServers": {
-  //   "my-server": {
-  //     "command": "node",
-  //     "args": ["/path/to/mcp-server.js"],
-  //     "env": {}
-  //   }
-  // }
-}`;
 
 // ── Agent Profiles ─────────────────────────────────────────────────
 
@@ -478,7 +383,7 @@ async function ensureDefaultAgentProfiles() {
   const haveByName = new Set(
     Object.values(existing)
       .filter(Boolean)
-      .map((p) => p.name)
+      .map((p) => p.name),
   );
   const updates = {};
   for (const p of DEFAULT_AGENT_PROFILES) {
@@ -503,7 +408,7 @@ app.get(
     await ensureDefaultAgentProfiles();
     const all = (await fb.readPath("/repoAgent/agentProfiles")) || {};
     res.json({ items: Object.values(all).filter(Boolean) });
-  })
+  }),
 );
 
 app.post(
@@ -529,7 +434,7 @@ app.post(
     };
     await fb.writePath(`/repoAgent/agentProfiles/${id}`, obj);
     res.json({ ok: true, item: obj });
-  })
+  }),
 );
 
 app.patch(
@@ -544,7 +449,7 @@ app.patch(
     patch.updatedAt = nowIso();
     await fb.updatePath(`/repoAgent/agentProfiles/${id}`, patch);
     res.json({ ok: true });
-  })
+  }),
 );
 
 app.delete(
@@ -553,7 +458,7 @@ app.delete(
     const id = req.params.id;
     await fb.deletePath(`/repoAgent/agentProfiles/${id}`);
     res.json({ ok: true });
-  })
+  }),
 );
 
 // ── Agent Credentials ──────────────────────────────────────────────
@@ -565,7 +470,7 @@ app.get(
     res.json({
       items: Object.values(all).filter(Boolean).map(publicAgentCredential),
     });
-  })
+  }),
 );
 
 app.post(
@@ -608,7 +513,7 @@ app.post(
     }
     await fb.writePath(`/repoAgent/agentCredentials/${id}`, obj);
     res.json({ ok: true, item: publicAgentCredential(obj) });
-  })
+  }),
 );
 
 app.patch(
@@ -633,7 +538,7 @@ app.patch(
     patch.updatedAt = nowIso();
     await fb.updatePath(`/repoAgent/agentCredentials/${id}`, patch);
     res.json({ ok: true });
-  })
+  }),
 );
 
 app.delete(
@@ -642,7 +547,7 @@ app.delete(
     const id = req.params.id;
     await fb.deletePath(`/repoAgent/agentCredentials/${id}`);
     res.json({ ok: true });
-  })
+  }),
 );
 
 // ── Slot pool ──────────────────────────────────────────────────────
@@ -658,7 +563,7 @@ app.get(
         .filter(Boolean)
         .sort((a, b) => (a.slot || "").localeCompare(b.slot || "")),
     });
-  })
+  }),
 );
 
 // Admin: force-reset 1 slot về free + clear session + best-effort stop container.
@@ -688,7 +593,7 @@ app.post(
     await launcher.setSlotStatus(slot, "free", { sessionId: null });
     log("info", "admin-reset-slot", { slot, prevStatus: cur.status });
     res.json({ ok: true, slot, prevStatus: cur.status });
-  })
+  }),
 );
 
 // Admin: bulk reset tất cả slot không phải "busy" trong một lần (xóa rác mồ côi).
@@ -716,7 +621,7 @@ app.post(
     }
     log("info", "admin-reset-stale", { count: reset.length });
     res.json({ ok: true, count: reset.length, items: reset });
-  })
+  }),
 );
 
 // ── Sessions / Launch ──────────────────────────────────────────────
@@ -727,7 +632,7 @@ app.post(
     const { repoId, agentProfileId, branch, agentCredentialIds } = req.body || {};
     const result = await launcher.launch({ repoId, agentProfileId, branch, agentCredentialIds });
     res.json({ ok: true, ...result });
-  })
+  }),
 );
 
 app.post(
@@ -736,7 +641,7 @@ app.post(
     const id = req.params.id;
     const result = await launcher.closeSession(id);
     res.json({ ok: true, ...result });
-  })
+  }),
 );
 
 app.get(
@@ -746,12 +651,9 @@ app.get(
     res.json({
       items: Object.values(all)
         .filter(Boolean)
-        .sort(
-          (a, b) =>
-            String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
-        ),
+        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))),
     });
-  })
+  }),
 );
 
 // ── Static UI ──────────────────────────────────────────────────────
@@ -789,7 +691,8 @@ app.listen(PORT, () => {
       log("info", `Firebase + slot pool + default agents ready. Auto-released ${resetList.length} slots on boot.`, { resetList });
       // Periodically clean up any interrupted busy slots every 15 seconds.
       setInterval(() => {
-        launcher.checkAndReleaseInterruptedSlots()
+        launcher
+          .checkAndReleaseInterruptedSlots()
           .then((released) => {
             if (released.length > 0) {
               log("info", "auto-released-interrupted-slots", { count: released.length, slots: released });
@@ -800,7 +703,5 @@ app.listen(PORT, () => {
           });
       }, 15000);
     })
-    .catch((err) =>
-      log("error", "init-failed", { err: String(err.message || err) })
-    );
+    .catch((err) => log("error", "init-failed", { err: String(err.message || err) }));
 });
