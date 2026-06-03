@@ -24,11 +24,18 @@ function launcher() {
       ]);
       // Poll sessions every 5s.
       this.pollHandle = setInterval(() => this.loadSessions(), 5000);
+
+      // Watch selectedAgentId to dynamically update selectedCredIds
+      this.$watch("selectedAgentId", (val) => {
+        this.selectedCredIds = this.agentCredentials
+          .filter((c) => c.agentProfileId === val && c.enabled !== false)
+          .map((c) => c.id);
+      });
     },
     get selectedRepo() {
       return this.repos.find((r) => r.id === this.selectedRepoId) || null;
     },
-    get selectedAgentCredentials() {
+    selectedAgentCredentials() {
       if (!this.selectedAgentId) return [];
       return this.agentCredentials.filter(
         (c) => c.agentProfileId === this.selectedAgentId && c.enabled !== false
