@@ -213,9 +213,19 @@ if ! tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
   esac
 fi
 
+# Setup ttyd window title
+TTYD_TITLE="Repo Agent"
+if [ -n "${REPO_AGENT_REPO_FULL_NAME:-}" ] && [ -n "${REPO_AGENT_AGENT_NAME:-}" ]; then
+  TTYD_TITLE="${REPO_AGENT_REPO_FULL_NAME} (${REPO_AGENT_AGENT_NAME})"
+elif [ -n "${REPO_AGENT_REPO_FULL_NAME:-}" ]; then
+  TTYD_TITLE="${REPO_AGENT_REPO_FULL_NAME}"
+elif [ -n "${REPO_AGENT_AGENT_NAME:-}" ]; then
+  TTYD_TITLE="${REPO_AGENT_AGENT_NAME}"
+fi
+
 # Chạy ttyd. Khi client connect, nó sẽ attach vào session tmux.
 # Nếu session tmux bị đóng vì bất kỳ lý do gì, ttyd sẽ tự động khởi tạo lại một session mới để tránh crash.
-exec ttyd -W -m 1 -p "$TTYD_PORT" \
+exec ttyd -W -m 1 -p "$TTYD_PORT" --title "$TTYD_TITLE" \
   env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 LANGUAGE=en_US.UTF-8 \
   bash -lc "
   export LANG=en_US.UTF-8
