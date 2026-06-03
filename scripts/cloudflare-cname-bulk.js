@@ -50,10 +50,7 @@ function loadDotEnv(file) {
     const key = line.slice(0, idx).trim();
     let value = line.slice(idx + 1).trim();
     // strip surrounding quotes
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
     }
     if (process.env[key] == null) process.env[key] = value;
@@ -64,16 +61,12 @@ const ENV_FILE = process.env.ENV_FILE || path.resolve(__dirname, "..", ".env");
 loadDotEnv(ENV_FILE);
 
 const API_TOKEN = process.env.CLOUDFLARED_API_TOKEN || "";
-const ZONE_ID = process.env.CLOUDFLARED_ZONE_ID || "";
-const DOMAIN = process.env.DOMAIN || "";
-const TUNNEL_ID = process.env.CLOUDFLARED_TUNNEL_ID || "";
+const ZONE_ID = process.env.CLOUDFLARED_ZONE_ID || "835d2e2cc167da44769841a15c8beb3c";
+const DOMAIN = process.env.DOMAIN || "dockerstackagentscode.dpdns.org";
+const TUNNEL_ID = process.env.CLOUDFLARED_TUNNEL_ID || "9d241926-7a36-441a-bfac-2ff960946ea9";
 const TOTAL_SLOTS = parseInt(process.env.REPO_AGENT_TOTAL_SLOTS || "100", 10);
 
-const TUNNEL_TARGET = TUNNEL_ID.includes(".")
-  ? TUNNEL_ID
-  : TUNNEL_ID
-    ? `${TUNNEL_ID}.cfargotunnel.com`
-    : "";
+const TUNNEL_TARGET = TUNNEL_ID.includes(".") ? TUNNEL_ID : TUNNEL_ID ? `${TUNNEL_ID}.cfargotunnel.com` : "";
 
 function pad3(n) {
   return String(n).padStart(3, "0");
@@ -117,7 +110,11 @@ function cfRequest(method, urlPath, body) {
       res.on("end", () => {
         const text = Buffer.concat(chunks).toString("utf8");
         let json = null;
-        try { json = text ? JSON.parse(text) : null; } catch { /* keep null */ }
+        try {
+          json = text ? JSON.parse(text) : null;
+        } catch {
+          /* keep null */
+        }
         resolve({ status: res.statusCode, json, text });
       });
     });
@@ -132,31 +129,22 @@ async function listRecords(name) {
   // List all CNAME records under this zone, optionally filtered by name.
   const q = new URLSearchParams({ type: "CNAME", per_page: "100" });
   if (name) q.set("name", name);
-  const res = await cfRequest(
-    "GET",
-    `/client/v4/zones/${ZONE_ID}/dns_records?${q.toString()}`
-  );
+  const res = await cfRequest("GET", `/client/v4/zones/${ZONE_ID}/dns_records?${q.toString()}`);
   if (!res.json || res.json.success !== true) {
-    throw new Error(
-      `listRecords ${name || "*"} failed: ${res.status} ${res.text || ""}`
-    );
+    throw new Error(`listRecords ${name || "*"} failed: ${res.status} ${res.text || ""}`);
   }
   return res.json.result || [];
 }
 
 async function createRecord(host, content) {
-  const res = await cfRequest(
-    "POST",
-    `/client/v4/zones/${ZONE_ID}/dns_records`,
-    {
-      type: "CNAME",
-      name: host,
-      content,
-      ttl: 1, // 1 = automatic when proxied
-      proxied: true,
-      comment: "managed by cloudflare-cname-bulk.js",
-    }
-  );
+  const res = await cfRequest("POST", `/client/v4/zones/${ZONE_ID}/dns_records`, {
+    type: "CNAME",
+    name: host,
+    content,
+    ttl: 1, // 1 = automatic when proxied
+    proxied: true,
+    comment: "managed by cloudflare-cname-bulk.js",
+  });
   if (res.status === 200 || res.status === 201) return { ok: true, id: res.json.result.id };
   // 409 = already exists with different content; we surface that.
   return {
@@ -168,10 +156,7 @@ async function createRecord(host, content) {
 }
 
 async function deleteRecord(id) {
-  const res = await cfRequest(
-    "DELETE",
-    `/client/v4/zones/${ZONE_ID}/dns_records/${id}`
-  );
+  const res = await cfRequest("DELETE", `/client/v4/zones/${ZONE_ID}/dns_records/${id}`);
   return res.status === 200 ? { ok: true } : { ok: false, status: res.status, raw: res.text };
 }
 
