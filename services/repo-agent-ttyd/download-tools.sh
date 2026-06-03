@@ -19,39 +19,23 @@ warn() { echo "  ⚠ $*" >&2; }
 
 # ── Download helpers ──────────────────────────────────────────────
 
-# Tool dùng manifest JSON (như antigravity/agy)
-# Usage: download_via_manifest <name> <manifest_url>
-download_via_manifest() {
+# Tool dùng install script chính thức (tự detect platform)
+# Usage: download_via_script <name> <install_script_url>
+download_via_script() {
   local name="$1"
-  local manifest_url="$2"
-  log "$name: fetching manifest from $manifest_url"
-  local manifest
-  manifest=$(curl -fsSL "$manifest_url")
-  local url
-  url=$(echo "$manifest" | grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
-  local sha512
-  sha512=$(echo "$manifest" | grep -o '"sha512"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"sha512"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
-
-  log "$name: downloading binary from $url"
-  curl -fsSL "$url" -o "$DOWNLOADS/$name"
-
-  # Verify checksum nếu có
-  if [ -n "$sha512" ]; then
-    local actual
-    actual=$(sha512sum "$DOWNLOADS/$name" | cut -d' ' -f1)
-    if [ "$actual" != "$sha512" ]; then
-      warn "$name: checksum mismatch! Aborting."
-      rm -f "$DOWNLOADS/$name"
-      exit 1
-    fi
-    ok "$name: checksum verified"
+  local script_url="$2"
+  log "$name: running official install script (--dir $DOWNLOADS)"
+  curl -fsSL "$script_url" | bash -s -- --dir "$DOWNLOADS"
+  if [ -f "$DOWNLOADS/$name" ]; then
+    chmod +x "$DOWNLOADS/$name"
+    ok "$name: ready at downloads/$name"
+  else
+    warn "$name: binary not found after install — check script output above"
+    exit 1
   fi
-
-  chmod +x "$DOWNLOADS/$name"
-  ok "$name: ready at downloads/$name"
 }
 
-# Tool download thẳng URL (binary hoặc tarball)
+# Tool download thẳng URL
 # Usage: download_direct <name> <url>
 download_direct() {
   local name="$1"
@@ -75,22 +59,16 @@ download_tar() {
   ok "$name: ready at downloads/$name"
 }
 
-# Tool qua npm (dùng npm pack để lấy binary, không cần npm install global)
+# Tool qua npm
 # Usage: download_npm <name> <package>
 download_npm() {
   local name="$1"
   local package="$2"
-  log "$name: packing from npm ($package)"
+  log "$name: installing from npm ($package)"
   local tmpdir
   tmpdir=$(mktemp -d)
-  # Install vào tmpdir, lấy binary
   npm install --prefix "$tmpdir" "$package" --no-save --silent 2>/dev/null
-  # Tìm binary trong node_modules/.bin/
   local bin="$tmpdir/node_modules/.bin/$name"
-  if [ ! -f "$bin" ]; then
-    # Một số package đặt bin tên khác package
-    bin=$(find "$tmpdir/node_modules/.bin/" -type f | head -1)
-  fi
   if [ -f "$bin" ]; then
     cp "$bin" "$DOWNLOADS/$name"
     chmod +x "$DOWNLOADS/$name"
@@ -107,14 +85,14 @@ echo ""
 echo "📦 Downloading agent CLI tools for Docker image..."
 echo ""
 
-download_via_manifest "agy" \
-  "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64_musl.json"
+# agy — dùng install script chính thức, tự detect platform runner
+download_via_script "agy" "https://antigravity.google/cli/install.sh"
 
-# download_npm "claude" "@anthropic-ai/claude-code"
-# download_npm "codex"  "@openai/codex"
-# download_npm "opencode" "opencode-ai"
+# download_npm "claude"    "@anthropic-ai/claude-code"
+# download_npm "codex"     "@openai/codex"
+# download_npm "opencode"  "opencode-ai"
 # download_direct "mytool" "https://example.com/releases/v1.0/mytool-linux-amd64"
-# download_tar "another" "https://example.com/v1.0/another-linux-amd64.tar.gz" "another"
+# download_tar "other" "https://example.com/v1.0/other.tar.gz" "other-binary"
 
 # ─────────────────────────────────────────────────────────────────
 
