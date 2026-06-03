@@ -1227,6 +1227,87 @@ async function testReleaseInterruptedSlots() {
   expectEq("sessionActive status is still running", sessionActive.status, "running");
 }
 
+async function testAgyLaunchSettings() {
+  section("2.3b — Agy Launcher Settings generation");
+
+  const agentProfileId = "agent_agy_test";
+  await fbMock.writePath(`/repoAgent/agentProfiles/${agentProfileId}`, {
+    id: agentProfileId,
+    name: "agy",
+    label: "AGY / Antigravity",
+    command: "agy",
+    args: "",
+    workdir: "/workspace",
+    startMode: "shell",
+    settingsPath: "~/.gemini/antigravity-cli/settings.json",
+    settingsTemplate: '{"autoApprove": "all"}',
+    enabled: true,
+  });
+
+  const gitId = "git_launch_agy";
+  await fbMock.writePath(`/repoAgent/gitCredentials/${gitId}`, {
+    id: gitId,
+    provider: "github",
+    tokenBase64: Buffer.from("tok").toString("base64"),
+    username: "mock-user",
+    enabled: true,
+  });
+
+  const repoId = "repo_002";
+  await fbMock.writePath(`/repoAgent/repoCache/${repoId}`, {
+    id: repoId,
+    gitCredentialId: gitId,
+    provider: "github",
+    fullName: "mock-user/repo-a",
+    cloneUrl: "https://github.com/mock-user/repo-a.git",
+    defaultBranch: "main",
+    private: false,
+    localPath: `/repos/github/mock-user/repo-a`,
+    enabled: true,
+  });
+
+  await launcher.ensureSlotPoolInitialized();
+  const launchResult = await launcher.launch({
+    repoId,
+    agentProfileId,
+  });
+
+  // Verify agy settings file was materialized into slot manifest
+  const slotInjectedManifest = path.join(
+    SLOTS_ROOT,
+    launchResult.slot,
+    "injected-files",
+    "_manifest.json"
+  );
+  check(
+    "AgySettings.manifestExists",
+    fs.existsSync(slotInjectedManifest),
+    slotInjectedManifest
+  );
+
+  const manifestObj = JSON.parse(fs.readFileSync(slotInjectedManifest, "utf8"));
+  const agyFileEntry = (manifestObj.files || []).find((f) => f.name === "agy settings");
+
+  check(
+    "AgySettings.fileMaterialized",
+    !!agyFileEntry,
+    JSON.stringify(manifestObj.files)
+  );
+
+  if (agyFileEntry) {
+    expectEq("AgySettings.targetPath", agyFileEntry.targetPath, "/root/.gemini/antigravity-cli/settings.json");
+    expectEq("AgySettings.mode", agyFileEntry.mode, "0600");
+    check("AgySettings.hostFileExists", fs.existsSync(agyFileEntry.hostPath), agyFileEntry.hostPath);
+    if (fs.existsSync(agyFileEntry.hostPath)) {
+      const content = fs.readFileSync(agyFileEntry.hostPath, "utf8");
+      expectEq("AgySettings.content", content, '{"autoApprove": "all"}');
+    }
+  }
+
+  // Cleanup
+  await launcher.closeSession(launchResult.sessionId);
+}
+
 // ────────────────────────────────────────────────────────────────────
 // Final summary
 // ────────────────────────────────────────────────────────────────────
@@ -1238,6 +1319,7 @@ async function testReleaseInterruptedSlots() {
 async function main() {
   await testGitFlow();
   await testLaunchAndClose();
+  await testAgyLaunchSettings();
   await testConfigDefaults();
   await testReleaseInterruptedSlots();
 

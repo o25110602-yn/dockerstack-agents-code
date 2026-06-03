@@ -1,0 +1,25 @@
+feat: Tự động tạo file settings.json cấu hình sẵn cho AGY CLI khi launch
+
+Input của user:
+Hãy thêm chức năng này giúp tôi, khi laucher, nếu là agy, thì tạo sẵn file settings.json để cấu hình sẵn agy cli:
+- Tạo file js, hoặc json, có đầy đủ comment để cấu hình
+- Lấy file mẫu này, tạo config để lưu file
+- ~/.gemini/antigravity-cli/settings.json: cho phép cấu hình đường dẫn này trong template cấu hình luôn, mặc định là cái này, dựa vào mẫu json để tạo
+- Mặc định sẽ cho toàn quyền, không hỏi lại cái gì nhé
+
+Nguyên nhân gốc:
+Trước đây hệ thống launcher chưa hỗ trợ tự động tạo cấu hình cho AGY CLI khi khởi tạo slot container, gây khó khăn cho việc sử dụng AGY CLI ngay sau khi kết nối.
+
+Cách đã chỉnh để khắc phục:
+- Thêm trường `settingsPath` và `settingsTemplate` vào whitelist của Agent Profile (POST/PATCH API và DEFAULT_AGENT_PROFILES của agy).
+- Trong `launcher.js` khi launch, nếu profile là `agy` (hoặc cấu hình `settingsPath`/`settingsTemplate`), ghi file template và thêm vào `_manifest.json` của slot để container entrypoint tự động sao chép sang đường dẫn đích được cấu hình (ví dụ `/root/.gemini/antigravity-cli/settings.json`).
+- Template mặc định cho AGY cấu hình `"autoApprove": "all"` để tự động cấp toàn quyền và không hỏi lại.
+- Viết unit test bổ sung kiểm thử tính năng tạo cấu hình và chạy kiểm thử thành công.
+
+File đã áp fix bug:
+- services/app/src/server.js
+- services/app/src/launcher.js
+- tests/repo-agent/mock-flow.test.js
+
+Trả lời câu hỏi "khi laucher, nếu là agy, thì tạo sẵn file settings.json để cấu hình sẵn agy cli":
+Đã thêm chức năng tự động tạo file `settings.json` tại đường dẫn đích (mặc định là `~/.gemini/antigravity-cli/settings.json`, có hỗ trợ custom) với nội dung JSON đầy đủ comment. Cấu hình mặc định của file này đã bật `"autoApprove": "all"` để tự động cho phép toàn quyền không cần hỏi lại.

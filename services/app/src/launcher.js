@@ -174,6 +174,97 @@ async function stopSlotContainer(slot) {
   });
 }
 
+const DEFAULT_AGY_SETTINGS_TEMPLATE = `{
+  // ── Giao diện ──────────────────────────────────────────────────
+  // colorScheme: "terminal" | "dark" | "light" | "solarized dark" | "solarized light"
+  //              "colorblind-friendly dark" | "colorblind-friendly light" | "tokyo night"
+  // "terminal" = dùng màu sẵn có của terminal, không override gì cả → skip màn hình chọn
+  "colorScheme": "terminal",
+
+  // renderingMode: "alt-screen" (full-screen TUI) | "inline" (stream vào history terminal)
+  "renderingMode": "alt-screen",
+
+  // ── Quyền thực thi (YOLO / fine-grained) ──────────────────────
+  // Cách 1 — Toàn bộ tự approve (dùng khi chạy trong sandbox an toàn):
+  //   Tương đương flag \`agy --dangerously-skip-permissions\`
+  "autoApprove": "all",
+
+  // Cách 2 — Whitelist từng lệnh/path (khuyến nghị cho production):
+  // "permissions": {
+  //   "allow": [
+  //     // Cho phép toàn bộ lệnh git
+  //     "command(git)",
+  //     // Cho phép npm/node
+  //     "command(npm)",
+  //     "command(node)",
+  //     "command(npx)",
+  //     // Cho phép đọc/ghi trong thư mục làm việc
+  //     "read_file(**)",
+  //     "write_file(**)",
+  //     "edit_file(**)"
+  //     // Ví dụ thêm path cụ thể:
+  //     // "read_file(/workspace)",
+  //     // "command(python3)"
+  //   ],
+  //   "deny": [
+  //     // Chặn các lệnh nguy hiểm
+  //     "command(rm -rf /)",
+  //     "command(sudo rm)",
+  //     "command(mkfs)",
+  //     "command(dd)"
+  //   ]
+  // },
+
+  // ── Model ──────────────────────────────────────────────────────
+  // Model mặc định khi khởi động. Có thể đổi trong session bằng /model
+  // Ví dụ: "gemini-3-5-flash" | "gemini-3-pro" | "claude-opus-4-6" | ...
+  // Để trống = dùng default của CLI (Gemini 3.5 Flash Medium)
+  // "model": "gemini-3-5-flash",
+
+  // ── Workspace & project discovery ─────────────────────────────
+  // Cho phép truy cập file ngoài workspace hiện tại
+  "allowNonWorkspaceAccess": true,
+
+  // ── Telemetry ─────────────────────────────────────────────────
+  // false = tắt gửi dữ liệu usage về Google
+  "enableTelemetry": false,
+
+  // ── Sandbox (Terminal Sandbox) ────────────────────────────────
+  // Bật sandbox OS-level khi AI thực thi shell commands:
+  //   Linux  → nsjail
+  //   macOS  → sandbox-exec
+  // Nên bật nếu chạy agy --dangerously-skip-permissions
+  // "sandbox": true,
+
+  // ── LaTeX rendering ───────────────────────────────────────────
+  // false = tắt render công thức LaTeX trong terminal (dùng khi terminal không hỗ trợ)
+  // Tương đương env: AGY_CLI_DISABLE_LATEX=1
+  // "enableLatex": false,
+
+  // ── Account info header ───────────────────────────────────────
+  // Ẩn email và plan tier khỏi header của CLI
+  // Tương đương env: AGY_CLI_HIDE_ACCOUNT_INFO=1
+  // "hideAccountInfo": false,
+
+  // ── Subagents ────────────────────────────────────────────────
+  // Giới hạn số subagent chạy song song (mặc định không giới hạn)
+  // "maxSubagents": 3,
+
+  // ── Custom status line ────────────────────────────────────────
+  // Script nhận JSON metadata (CWD, model, token usage, state...) để tạo status bar
+  // "statusLineScript": "/path/to/your/status-script.sh",
+
+  // ── MCP Servers ───────────────────────────────────────────────
+  // Khai báo MCP servers để dùng tools bên ngoài
+  // "mcpServers": {
+  //   "my-server": {
+  //     "command": "node",
+  //     "args": ["/path/to/mcp-server.js"],
+  //     "env": {}
+  //   }
+  // }
+}`;
+
 // ── Launch flow ───────────────────────────────────────────────────
 
 async function launch({ repoId, agentProfileId, branch, agentCredentialIds }) {
@@ -225,6 +316,59 @@ async function launch({ repoId, agentProfileId, branch, agentCredentialIds }) {
 
     // 2) Materialize agent credentials into slot folder.
     const mat = agentCreds.materializeForSlot(slot, myCreds);
+
+    // 2.5) If agentProfile has settingsPath & settingsTemplate (e.g. for agy), write it to slot injected-files and update _manifest.json
+    let settingsPath = agentProfile.settingsPath;
+    let settingsTemplate = agentProfile.settingsTemplate;
+
+    if (agentProfile.name === "agy") {
+      if (!settingsPath) {
+        settingsPath = "~/.gemini/antigravity-cli/settings.json";
+      }
+      if (!settingsTemplate) {
+        settingsTemplate = DEFAULT_AGY_SETTINGS_TEMPLATE;
+      }
+    }
+
+    if (settingsPath && settingsTemplate) {
+      const fs = require("fs");
+      const path = require("path");
+      const slotDir = agentCreds.slotDir(slot);
+      const slotInjectedDir = path.join(slotDir, "injected-files");
+      const safe = "agy-settings.json";
+      const hostFile = path.join(slotInjectedDir, "files", safe);
+      fs.mkdirSync(path.dirname(hostFile), { recursive: true });
+      fs.writeFileSync(hostFile, settingsTemplate, { mode: 0o600 });
+
+      // Resolve ~ to /root for the container target path
+      let targetPath = settingsPath;
+      if (targetPath.startsWith("~/")) {
+        targetPath = "/root/" + targetPath.substring(2);
+      } else if (targetPath === "~") {
+        targetPath = "/root";
+      }
+
+      // Read manifest, push new file, and write back
+      const manifestPath = path.join(slotInjectedDir, "_manifest.json");
+      let manifest = { files: [], scripts: [], envExtras: {} };
+      if (fs.existsSync(manifestPath)) {
+        try {
+          manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+        } catch (e) {
+          // ignore
+        }
+      }
+      manifest.files = manifest.files || [];
+      manifest.files.push({
+        source: path.posix.join("/slot/injected-files/files", safe),
+        targetPath: targetPath,
+        mode: "0600",
+        name: "agy settings",
+        hostPath: hostFile,
+        containerPath: targetPath,
+      });
+      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), { mode: 0o600 });
+    }
 
     const token = Buffer.from(gitCred.tokenBase64 || "", "base64").toString("utf8");
     let gitHost = "";
