@@ -40,14 +40,14 @@ runs:
       if: runner.os == 'Linux'
       shell: bash
       run: |
-        docker build -t repo-agent-ttyd:local ./services/repo-agent-ttyd
+        docker build --network=host -t repo-agent-ttyd:local ./services/repo-agent-ttyd
 
     - name: Build repo-agent-ttyd image (Windows/WSL2)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
         $wsl = $env:WSL_WORKSPACE
-        wsl -d Ubuntu -- bash -c "cd '$wsl' && docker build -t repo-agent-ttyd:local ./services/repo-agent-ttyd"
+        wsl -d Ubuntu -- bash -c "cd '$wsl' && docker build --network=host -t repo-agent-ttyd:local ./services/repo-agent-ttyd"
 
     - name: Build & start services (Linux)
       if: runner.os == 'Linux'
