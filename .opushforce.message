@@ -1,18 +1,27 @@
-feat:Bổ sung trường name của agent credentials vào manifest và in ra logs của ttyd container
+feat:Cấu hình TINYAUTH_AUTH_SECRET để tinyauth duy trì session người dùng
 
 Input của user:
-hãy bổ sung thêm name của agent credentials
+chỉnh thêm chỗ này, mục đích để  tinyauth nhớ session: hãy tạo giá trị mặc định theo hướng dẫn, tôi cần thay đổi sẽ cạp nhật env sau: Fix nhanh
+1. Sinh secret:
+bashopenssl rand -hex 32
+2. Thêm vào .env:
+envTINYAUTH_SECRET=abc123...your_generated_value
+3. Thêm vào compose.auth.yml trong block environment của tinyauth:
+yamlTINYAUTH_AUTH_SECRET: "${TINYAUTH_SECRET}"
 
 Nguyên nhân gốc:
-Trước đây manifest JSON được ghi vào slot container không lưu thông tin tên (name) của credentials, nên tập tin chạy entrypoint.sh chỉ in log sao chép file/chạy script dưới dạng các đường dẫn vật lý mà không có tên định danh tường minh.
+Tinyauth cần cấu hình mã khóa bí mật cookie để có thể nhớ và duy trì session đăng nhập của người dùng ổn định qua các phiên chạy.
 
 Cách đã chỉnh để khắc phục:
-- Trong `services/app/src/agent-creds.js`, bổ sung trường `name` khi tạo danh sách file (files) và `credentialName` khi tạo danh sách script (scripts) để lưu vào manifest JSON.
-- Trong `services/repo-agent-ttyd/entrypoint.sh`, trích xuất giá trị `name` (đối với file) và `credentialName` (đối với script) từ manifest JSON để in ra log với định dạng `credential file ($name): ...` và `running bootstrap script ($cred_name): ...`.
+- Sinh ngẫu nhiên mã hex 32-bytes làm giá trị mặc định cho `TINYAUTH_SECRET`.
+- Thêm khai báo mặc định `TINYAUTH_SECRET` vào file `.env.example`.
+- Cho phép `TINYAUTH_SECRET` hoạt động hợp lệ bằng cách loại bỏ nó khỏi danh sách kiểm tra deprecated trong file script kiểm thử môi trường `docker-compose/scripts/validate-env.js`.
+- Bổ sung cấu hình `TINYAUTH_AUTH_SECRET: "${TINYAUTH_SECRET}"` vào phần cấu hình môi trường của container `tinyauth` trong file `docker-compose/compose.auth.yml`.
 
 File đã áp fix bug:
-- services/app/src/agent-creds.js
-- services/repo-agent-ttyd/entrypoint.sh
+- .env.example
+- docker-compose/scripts/validate-env.js
+- docker-compose/compose.auth.yml
 
-Trả lời câu hỏi "hãy bổ sung thêm name của agent credentials":
-Đã cập nhật việc lưu trữ tên credentials vào manifest JSON và sửa đổi script khởi tạo của slot container (entrypoint.sh) để tự động đọc và in kèm tên của credentials khi inject file hoặc chạy bootstrap script.
+Trả lời câu hỏi "chỉnh thêm chỗ này, mục đích để tinyauth nhớ session...":
+Đã sinh mã secret mặc định thành công, cấu hình liên kết sang biến TINYAUTH_AUTH_SECRET của container trong compose.auth.yml để Tinyauth lưu giữ session của người dùng đúng theo thiết kế. Nhánh git đã được cập nhật và push lên remote.
