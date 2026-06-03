@@ -43,7 +43,7 @@ fi
 # ── 1.5) Setup Git Credentials inside container ──────────────────────
 if [ -n "${REPO_AGENT_GIT_HOST:-}" ] && [ -n "${REPO_AGENT_GIT_TOKEN:-}" ]; then
   log "Configuring git credentials inside container for ${REPO_AGENT_GIT_HOST}"
-  
+
   GIT_USER="${REPO_AGENT_GIT_USERNAME:-}"
   if [ -z "$GIT_USER" ]; then
     if [ "${REPO_AGENT_GIT_PROVIDER:-}" = "github" ]; then
@@ -58,13 +58,12 @@ if [ -n "${REPO_AGENT_GIT_HOST:-}" ] && [ -n "${REPO_AGENT_GIT_TOKEN:-}" ]; then
   mkdir -p /root
   echo "https://${GIT_USER}:${REPO_AGENT_GIT_TOKEN}@${REPO_AGENT_GIT_HOST}" > /root/.git-credentials
   chmod 600 /root/.git-credentials
-  
+
   git config --global credential.helper 'store --file=/root/.git-credentials'
-  
-  # Configure URL rewrites so git commands automatically use the token
+
   git config --global "url.https://${GIT_USER}:${REPO_AGENT_GIT_TOKEN}@${REPO_AGENT_GIT_HOST}/.insteadOf" "https://${REPO_AGENT_GIT_HOST}/"
   git config --global "url.http://${GIT_USER}:${REPO_AGENT_GIT_TOKEN}@${REPO_AGENT_GIT_HOST}/.insteadOf" "http://${REPO_AGENT_GIT_HOST}/"
-  
+
   if ! git config --global user.name >/dev/null 2>&1; then
     git config --global user.name "${GIT_USER}"
   fi
@@ -117,7 +116,6 @@ apply_manifest() {
     return 0
   fi
 
-  # Copy files into their targetPath (read mapping array of {source,targetPath,mode})
   count_files=$(jq '.files | length' "$manifest" 2>/dev/null || echo 0)
   if [ "$count_files" -gt 0 ] 2>/dev/null; then
     i=0
@@ -143,7 +141,6 @@ apply_manifest() {
     done
   fi
 
-  # Run bootstrap scripts in name order
   for s in "$INJECTED_DIR"/bootstrap-*.sh; do
     [ -f "$s" ] || continue
     s_base=$(basename "$s")
@@ -161,9 +158,6 @@ apply_manifest
 
 # ── 4) Symlink /workspace → repo path ─────────────────────────────
 if [ "$REPO_PATH_OK" -eq 1 ]; then
-  # Replace /workspace with a symlink to the repo so any tool that defaults
-  # to /workspace lands in the right place. /workspace must NOT be a
-  # bind-mount target — Dockerfile uses it as a normal dir.
   if [ -L /workspace ] || [ -d /workspace ]; then
     rm -rf /workspace 2>/dev/null || true
   fi
@@ -182,14 +176,8 @@ if [ -n "$AGENT_BIN" ] && command -v "$AGENT_BIN" >/dev/null 2>&1; then
 fi
 
 # ── 6) Launch ──────────────────────────────────────────────────────
-# ttyd flags:
-#   -W       writable mode (cho phép input vào terminal)
-#   -m 1     max 1 client per session — slot là tài nguyên 1-1, không cho 2 tab
-#            cùng share session để tránh race khi 2 user đụng cùng REPL.
-#   -p PORT  bind port (caddy upstream qua label sẽ point tới đây)
 TMUX_SESSION="repo-agent"
 
-# Khởi tạo tmux session ban đầu ở dạng detached
 if ! tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
   case "$START_MODE" in
     agent)
@@ -213,7 +201,9 @@ if ! tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
   esac
 fi
 
-# Setup ttyd window title
+# ── 7) Build browser tab title ─────────────────────────────────────
+# Dùng OSC escape sequence \033]0;...\007 thay vì --title flag
+# (ttyd forward escape sequence lên browser title bar, không cần flag support)
 TTYD_TITLE="Repo Agent"
 if [ -n "${REPO_AGENT_REPO_FULL_NAME:-}" ] && [ -n "${REPO_AGENT_AGENT_NAME:-}" ]; then
   TTYD_TITLE="${REPO_AGENT_REPO_FULL_NAME} (${REPO_AGENT_AGENT_NAME})"
@@ -223,14 +213,23 @@ elif [ -n "${REPO_AGENT_AGENT_NAME:-}" ]; then
   TTYD_TITLE="${REPO_AGENT_AGENT_NAME}"
 fi
 
-# Chạy ttyd. Khi client connect, nó sẽ attach vào session tmux.
-# Nếu session tmux bị đóng vì bất kỳ lý do gì, ttyd sẽ tự động khởi tạo lại một session mới để tránh crash.
-exec ttyd -W -m 1 -p "$TTYD_PORT" --title "$TTYD_TITLE" \
+log "browser title will be: $TTYD_TITLE"
+
+# Prevent tmux from overriding the title we set
+tmux set-option -g set-titles off 2>/dev/null || true
+tmux set-option -g allow-rename off 2>/dev/null || true
+
+# ── 8) Start ttyd ──────────────────────────────────────────────────
+exec ttyd -W -m 1 -p "$TTYD_PORT" \
   env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 LANGUAGE=en_US.UTF-8 \
   bash -lc "
   export LANG=en_US.UTF-8
   export LC_ALL=en_US.UTF-8
   export LANGUAGE=en_US.UTF-8
+
+  # Set browser tab title via OSC escape sequence
+  printf '\\033]0;${TTYD_TITLE}\\007'
+
   if ! tmux has-session -t $TMUX_SESSION 2>/dev/null; then
     tmux new-session -d -s $TMUX_SESSION -c /workspace bash
   fi
