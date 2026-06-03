@@ -29,19 +29,14 @@ function localPathFor(repo) {
 
 function run(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
-    execFile(
-      cmd,
-      args,
-      { env: process.env, maxBuffer: 32 * 1024 * 1024, ...opts },
-      (err, stdout, stderr) => {
-        if (err) {
-          err.stdout = stdout;
-          err.stderr = stderr;
-          return reject(err);
-        }
-        resolve({ stdout, stderr });
+    execFile(cmd, args, { env: process.env, maxBuffer: 32 * 1024 * 1024, ...opts }, (err, stdout, stderr) => {
+      if (err) {
+        err.stdout = stdout;
+        err.stderr = stderr;
+        return reject(err);
       }
-    );
+      resolve({ stdout, stderr });
+    });
   });
 }
 
@@ -57,12 +52,7 @@ async function cloneOrPull({ repo, gitCredential }) {
   if (!token) {
     throw new Error("Git credential token is empty");
   }
-  const authedUrl = gitProviders.buildAuthenticatedCloneUrl(
-    repo.provider,
-    repo.cloneUrl,
-    token,
-    gitCredential.username || ""
-  );
+  const authedUrl = gitProviders.buildAuthenticatedCloneUrl(repo.provider, repo.cloneUrl, token, gitCredential.username || "");
 
   const env = {
     ...process.env,
@@ -82,29 +72,16 @@ async function cloneOrPull({ repo, gitCredential }) {
       /* branch may not exist locally yet */
     }
     try {
-      await run(
-        "git",
-        ["-C", target, "reset", "--hard", `origin/${branch}`],
-        { env }
-      );
+      await run("git", ["-C", target, "reset", "--hard", `origin/${branch}`], { env });
     } catch (err) {
       // fallback to plain pull
       await run("git", ["-C", target, "pull", "--ff-only"], { env });
     }
   } else {
     const branch = repo.defaultBranch || "main";
-    await run(
-      "git",
-      ["clone", "--depth", "1", "--branch", branch, authedUrl, target],
-      { env }
-    ).catch(async (err) => {
+    await run("git", ["clone", "--depth", "1", "--branch", branch, authedUrl, target], { env }).catch(async (err) => {
       // fallback if branch doesn't exist
-      if (
-        String(err.stderr || "").includes(
-          "Remote branch"
-        ) ||
-        String(err.stderr || "").includes("not found")
-      ) {
+      if (String(err.stderr || "").includes("Remote branch") || String(err.stderr || "").includes("not found")) {
         await run("git", ["clone", "--depth", "1", authedUrl, target], {
           env,
         });
@@ -114,7 +91,9 @@ async function cloneOrPull({ repo, gitCredential }) {
     });
   }
 
-  // Strip token from origin URL on disk to avoid leaking via `git remote -v`.
+  // Modified by agent: Do NOT strip token from origin URL on disk so that
+  // the slot/agent can perform git push directly using the remote origin URL.
+  /*
   try {
     await run(
       "git",
@@ -122,8 +101,9 @@ async function cloneOrPull({ repo, gitCredential }) {
       { env }
     );
   } catch {
-    /* non-fatal */
+    // non-fatal
   }
+  */
 
   return { localPath: target };
 }
