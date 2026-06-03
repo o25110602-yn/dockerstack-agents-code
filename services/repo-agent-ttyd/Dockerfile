@@ -1,28 +1,16 @@
 # ================================================================
 #  repo-agent-ttyd — TTYD slot image with coding tools
 #
-#  Built once, reused by all 100 ttyd-XXX slots in compose.repo-ttyd.yml.
-#  Includes:
-#    - ttyd (web terminal)
-#    - bash, git, curl, ca-certificates
-#    - node + npm  (cho codex/claude/opencode/agy npm-based)
-#    - openssh-client (git over SSH nếu cần)
-#    - ripgrep, fd, jq, coreutils (cho coding agent)
+#  Agent CLI được cài sẵn vào image.
+#  Binary pre-downloaded bởi download-tools.sh trên CI runner.
 #
-#  Agent CLI (codex / claude / opencode / agy) KHÔNG cài sẵn ở đây.
-#  Lý do: package name không ổn định, có agent là binary, có agent là
-#  npm package. Có 2 cơ chế để cài thêm:
-#    1. Bootstrap script qua AgentCredential type=script
-#       (decode → /slot/injected-files/bootstrap-*.sh → entrypoint chạy)
-#    2. Build image custom dựa trên image này, thêm RUN cài CLI mong muốn
-#
-#  Nếu agent command not found, entrypoint vẫn mở shell và in cảnh báo
-#  để user biết cần cài thêm.
+#  Thêm tool mới:
+#    1. Thêm vào download-tools.sh (group tương ứng)
+#    2. Không cần sửa Dockerfile — COPY downloads/* tự pick up
 # ================================================================
 
-FROM tsl0922/ttyd:1.7.8-alpine
+FROM tsl0922/ttyd:1.7.7-alpine
 
-# Set bash as default shell for RUN
 SHELL ["/bin/sh", "-c"]
 
 RUN apk add --no-cache \
@@ -37,12 +25,20 @@ RUN apk add --no-cache \
     fd \
     jq \
     coreutils \
-    tzdata
+    tzdata \
+    unzip
 
-# Install antigravity CLI
-# RUN curl -fsSL https://antigravity.google/cli/install.sh | sh
+# ── Agent CLI tools (pre-downloaded by CI via download-tools.sh) ──
+# downloads/ không commit vào git (.gitignore).
+# CI chạy download-tools.sh trước, tạo ra thư mục này.
+# Nếu downloads/ trống hoặc không tồn tại → build vẫn pass,
+# chỉ thiếu tool (entrypoint sẽ in cảnh báo).
+COPY downloads/ /usr/local/bin/
+RUN find /usr/local/bin -maxdepth 1 -type f ! -name '*.sh' -exec chmod +x {} \; \
+ && echo "Installed tools:" \
+ && ls -lh /usr/local/bin/ | grep -v '^total' || true
 
-# Default workdir (entrypoint sẽ symlink về repo path nếu có)
+# ── Default workdir ───────────────────────────────────────────────
 WORKDIR /workspace
 
 COPY entrypoint.sh /usr/local/bin/repo-agent-ttyd-entrypoint
