@@ -200,7 +200,12 @@ fi
 
 # Chạy ttyd. Khi client connect, nó sẽ attach vào session tmux.
 # Nếu session tmux bị đóng vì bất kỳ lý do gì, ttyd sẽ tự động khởi tạo lại một session mới để tránh crash.
-exec ttyd -W -m 1 -p "$TTYD_PORT" bash -lc "
+exec ttyd -W -m 1 -p "$TTYD_PORT" \
+  env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 LANGUAGE=en_US.UTF-8 \
+  bash -lc "
+  export LANG=en_US.UTF-8
+  export LC_ALL=en_US.UTF-8
+  export LANGUAGE=en_US.UTF-8
   if ! tmux has-session -t $TMUX_SESSION 2>/dev/null; then
     tmux new-session -d -s $TMUX_SESSION -c /workspace bash
   fi

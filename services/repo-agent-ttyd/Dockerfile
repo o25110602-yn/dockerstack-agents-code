@@ -12,6 +12,11 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
+# ── Locale (UTF-8 để gõ tiếng Việt và ký tự Unicode trong terminal) ──
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+ENV LANGUAGE=en_US.UTF-8
+
 # ── System packages ───────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
@@ -30,6 +35,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xz-utils \
     nodejs \
     npm \
+    locales \
+ && locale-gen en_US.UTF-8 \
+ && update-locale LANG=en_US.UTF-8 \
  && ln -sf /usr/bin/fdfind /usr/local/bin/fd \
  && echo "set -g status off" > /etc/tmux.conf \
  && echo "set -g mouse on" >> /etc/tmux.conf \
