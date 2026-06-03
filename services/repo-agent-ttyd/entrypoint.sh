@@ -40,6 +40,35 @@ else
   log "WARN: $RUNTIME_ENV not found; running with current environment only"
 fi
 
+# ── 1.5) Setup Git Credentials inside container ──────────────────────
+if [ -n "${REPO_AGENT_GIT_HOST:-}" ] && [ -n "${REPO_AGENT_GIT_TOKEN:-}" ]; then
+  log "Configuring git credentials inside container for ${REPO_AGENT_GIT_HOST}"
+  
+  GIT_USER="${REPO_AGENT_GIT_USERNAME:-}"
+  if [ -z "$GIT_USER" ]; then
+    if [ "${REPO_AGENT_GIT_PROVIDER:-}" = "github" ]; then
+      GIT_USER="x-access-token"
+    elif [ "${REPO_AGENT_GIT_PROVIDER:-}" = "gitlab" ]; then
+      GIT_USER="oauth2"
+    else
+      GIT_USER="x-access-token"
+    fi
+  fi
+
+  mkdir -p /root
+  echo "https://${GIT_USER}:${REPO_AGENT_GIT_TOKEN}@${REPO_AGENT_GIT_HOST}" > /root/.git-credentials
+  chmod 600 /root/.git-credentials
+  
+  git config --global credential.helper 'store --file=/root/.git-credentials'
+  
+  if ! git config --global user.name >/dev/null 2>&1; then
+    git config --global user.name "${GIT_USER}"
+  fi
+  if ! git config --global user.email >/dev/null 2>&1; then
+    git config --global user.email "${GIT_USER}@noreply.${REPO_AGENT_GIT_HOST}"
+  fi
+fi
+
 START_MODE="${REPO_AGENT_START_MODE:-shell}"
 AGENT_COMMAND="${REPO_AGENT_AGENT_COMMAND:-bash}"
 AGENT_ARGS="${REPO_AGENT_AGENT_ARGS:-}"
@@ -143,39 +172,37 @@ fi
 #   -m 1     max 1 client per session — slot là tài nguyên 1-1, không cho 2 tab
 #            cùng share session để tránh race khi 2 user đụng cùng REPL.
 #   -p PORT  bind port (caddy upstream qua label sẽ point tới đây)
-case "$START_MODE" in
-  agent)
-    if [ "$AGENT_FOUND" -eq 1 ]; then
-      log "startMode=agent — exec: $AGENT_COMMAND $AGENT_ARGS"
-      exec ttyd -W -m 1 -p "$TTYD_PORT" bash -lc "cd /workspace && exec $AGENT_COMMAND $AGENT_ARGS"
-    else
-      log "startMode=agent but '$AGENT_BIN' NOT FOUND — falling back to shell"
-      log "  Install the agent CLI via AgentCredential type=script,"
-      log "  or build a custom image FROM repo-agent-ttyd:* with the CLI."
-      exec ttyd -W -m 1 -p "$TTYD_PORT" bash -lc \
-        "cd /workspace && \
-         echo '⚠️  Agent CLI not found: $AGENT_BIN' && \
-         echo 'Run command manually after installing it.' && \
-         exec bash"
-    fi
-    ;;
-  shell|*)
-    if [ "$AGENT_FOUND" -eq 1 ]; then
-      exec ttyd -W -m 1 -p "$TTYD_PORT" bash -lc \
-        "cd /workspace && \
-         echo '✅ Repo Agent session ready.' && \
-         echo '   Repo : ${REPO_AGENT_REPO_FULL_NAME:-?} @ ${REPO_AGENT_BRANCH:-?}' && \
-         echo '   Path : ${REPO_PATH:-/workspace}' && \
-         echo '   Run  : $AGENT_COMMAND $AGENT_ARGS' && \
-         exec bash"
-    else
-      exec ttyd -W -m 1 -p "$TTYD_PORT" bash -lc \
-        "cd /workspace && \
-         echo '✅ Repo Agent session ready (shell mode).' && \
-         echo '   Repo : ${REPO_AGENT_REPO_FULL_NAME:-?} @ ${REPO_AGENT_BRANCH:-?}' && \
-         echo '   Path : ${REPO_PATH:-/workspace}' && \
-         echo '⚠️  Agent CLI not found: $AGENT_BIN — install it before running.' && \
-         exec bash"
-    fi
-    ;;
-esac
+TMUX_SESSION="repo-agent"
+
+# Khởi tạo tmux session ban đầu ở dạng detached
+if ! tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+  case "$START_MODE" in
+    agent)
+      if [ "$AGENT_FOUND" -eq 1 ]; then
+        log "startMode=agent — initializing tmux session with command: $AGENT_COMMAND $AGENT_ARGS"
+        tmux new-session -d -s "$TMUX_SESSION" -c /workspace "bash -lc 'cd /workspace && exec $AGENT_COMMAND $AGENT_ARGS'"
+      else
+        log "startMode=agent but '$AGENT_BIN' NOT FOUND — initializing tmux session with shell fallback"
+        tmux new-session -d -s "$TMUX_SESSION" -c /workspace "bash -lc 'cd /workspace && echo \"⚠️  Agent CLI not found: $AGENT_BIN\" && echo \"Run command manually after installing it.\" && exec bash'"
+      fi
+      ;;
+    shell|*)
+      if [ "$AGENT_FOUND" -eq 1 ]; then
+        log "startMode=shell — initializing tmux session with interactive shell and banner"
+        tmux new-session -d -s "$TMUX_SESSION" -c /workspace "bash -lc 'cd /workspace && echo \"✅ Repo Agent session ready.\" && echo \"   Repo : ${REPO_AGENT_REPO_FULL_NAME:-?} @ ${REPO_AGENT_BRANCH:-?}\" && echo \"   Path : ${REPO_PATH:-/workspace}\" && echo \"   Run  : $AGENT_COMMAND $AGENT_ARGS\" && exec bash'"
+      else
+        log "startMode=shell — initializing tmux session with interactive shell (fallback mode)"
+        tmux new-session -d -s "$TMUX_SESSION" -c /workspace "bash -lc 'cd /workspace && echo \"✅ Repo Agent session ready (shell mode).\" && echo \"   Repo : ${REPO_AGENT_REPO_FULL_NAME:-?} @ ${REPO_AGENT_BRANCH:-?}\" && echo \"   Path : ${REPO_PATH:-/workspace}\" && echo \"⚠️  Agent CLI not found: $AGENT_BIN — install it before running.\" && exec bash'"
+      fi
+      ;;
+  esac
+fi
+
+# Chạy ttyd. Khi client connect, nó sẽ attach vào session tmux.
+# Nếu session tmux bị đóng vì bất kỳ lý do gì, ttyd sẽ tự động khởi tạo lại một session mới để tránh crash.
+exec ttyd -W -m 1 -p "$TTYD_PORT" bash -lc "
+  if ! tmux has-session -t $TMUX_SESSION 2>/dev/null; then
+    tmux new-session -d -s $TMUX_SESSION -c /workspace bash
+  fi
+  exec tmux attach-session -t $TMUX_SESSION
+"

@@ -628,8 +628,8 @@ app.post(
 app.post(
   "/api/launch",
   wrap(async (req, res) => {
-    const { repoId, agentProfileId, branch } = req.body || {};
-    const result = await launcher.launch({ repoId, agentProfileId, branch });
+    const { repoId, agentProfileId, branch, agentCredentialIds } = req.body || {};
+    const result = await launcher.launch({ repoId, agentProfileId, branch, agentCredentialIds });
     res.json({ ok: true, ...result });
   })
 );
@@ -688,7 +688,8 @@ app.listen(PORT, () => {
     .then(() => fb.init())
     .then(() => launcher.ensureSlotPoolInitialized())
     .then(() => ensureDefaultAgentProfiles())
-    .then(() => log("info", "Firebase + slot pool + default agents ready"))
+    .then(() => launcher.releaseAllSlotsOnStart())
+    .then((resetList) => log("info", `Firebase + slot pool + default agents ready. Auto-released ${resetList.length} slots on boot.`, { resetList }))
     .catch((err) =>
       log("error", "init-failed", { err: String(err.message || err) })
     );

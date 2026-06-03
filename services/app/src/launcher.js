@@ -176,7 +176,7 @@ async function stopSlotContainer(slot) {
 
 // ── Launch flow ───────────────────────────────────────────────────
 
-async function launch({ repoId, agentProfileId, branch }) {
+async function launch({ repoId, agentProfileId, branch, agentCredentialIds }) {
   if (!repoId) throw new Error("repoId is required");
   if (!agentProfileId) throw new Error("agentProfileId is required");
 
@@ -201,7 +201,11 @@ async function launch({ repoId, agentProfileId, branch }) {
 
   // Filter agent credentials for this profile.
   const allCreds = (await fb.readPath("/repoAgent/agentCredentials")) || {};
-  const myCreds = Object.values(allCreds).filter((c) => c && c.agentProfileId === agentProfileId && c.enabled !== false);
+  let myCreds = Object.values(allCreds).filter((c) => c && c.agentProfileId === agentProfileId && c.enabled !== false);
+
+  if (Array.isArray(agentCredentialIds)) {
+    myCreds = myCreds.filter((c) => agentCredentialIds.includes(c.id));
+  }
 
   // Allocate session id first so slot.sessionId is meaningful.
   const sessionId = genId("sess");
@@ -222,6 +226,17 @@ async function launch({ repoId, agentProfileId, branch }) {
     // 2) Materialize agent credentials into slot folder.
     const mat = agentCreds.materializeForSlot(slot, myCreds);
 
+    const token = Buffer.from(gitCred.tokenBase64 || "", "base64").toString("utf8");
+    let gitHost = "";
+    if (repo.cloneUrl && repo.cloneUrl.startsWith("http")) {
+      try {
+        const u = new URL(repo.cloneUrl);
+        gitHost = u.host;
+      } catch (e) {
+        // ignore
+      }
+    }
+
     // 3) Write runtime.env for slot.
     const runtimeEnv = {
       REPO_AGENT_SESSION_ID: sessionId,
@@ -237,6 +252,10 @@ async function launch({ repoId, agentProfileId, branch }) {
       REPO_AGENT_AGENT_ARGS: agentProfile.args || "",
       REPO_AGENT_AGENT_WORKDIR: agentProfile.workdir || "/workspace",
       REPO_AGENT_START_MODE: agentProfile.startMode || "shell",
+      REPO_AGENT_GIT_PROVIDER: repo.provider || "",
+      REPO_AGENT_GIT_USERNAME: gitCred.username || "",
+      REPO_AGENT_GIT_TOKEN: token || "",
+      REPO_AGENT_GIT_HOST: gitHost || "",
       ...mat.envExtras,
     };
     agentCreds.writeRuntimeEnv(slot, runtimeEnv);
@@ -304,6 +323,32 @@ async function closeSession(sessionId) {
   return { sessionId, slot, status: "closed" };
 }
 
+async function releaseAllSlotsOnStart() {
+  await ensureSlotPoolInitialized();
+  const all = (await fb.readPath("/repoAgent/ttydSlots")) || {};
+  const reset = [];
+  for (const [slot, cur] of Object.entries(all)) {
+    if (!cur || cur.status === "free") continue;
+    try {
+      await stopSlotContainer(slot).catch(() => null);
+      if (cur.sessionId) {
+        await fb
+          .updatePath(`/repoAgent/sessions/${cur.sessionId}`, {
+            status: "forced-closed",
+            closedAt: nowIso(),
+            closedReason: "server-boot-reset",
+          })
+          .catch(() => null);
+      }
+      await setSlotStatus(slot, "free", { sessionId: null });
+      reset.push(slot);
+    } catch (err) {
+      // ignore
+    }
+  }
+  return reset;
+}
+
 module.exports = {
   TOTAL_SLOTS,
   ensureSlotPoolInitialized,
@@ -317,4 +362,5 @@ module.exports = {
   containerName,
   slotUrl,
   slotHost,
+  releaseAllSlotsOnStart,
 };

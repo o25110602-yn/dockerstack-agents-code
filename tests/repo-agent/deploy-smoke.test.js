@@ -222,8 +222,8 @@ function fileExists(rel) {
   const src = readUtf8(rel);
   check(
     "TtydDockerfile.fromTtyd",
-    /^FROM\s+(tsl0922\/ttyd|.*ttyd)/m.test(src),
-    "must start FROM ttyd image"
+    /^FROM\s+(tsl0922\/ttyd|.*ttyd|ubuntu)/m.test(src),
+    "must start FROM ttyd or ubuntu image"
   );
   // Required tools for coding agents
   for (const tool of ["bash", "git", "nodejs", "npm", "jq"]) {

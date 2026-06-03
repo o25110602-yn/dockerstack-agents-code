@@ -9,6 +9,7 @@ function launcher() {
     repoSearch: "",
     selectedRepoId: "",
     selectedAgentId: "",
+    selectedCredIds: [],
     launching: false,
     lastError: "",
     lastResult: null,
@@ -26,6 +27,12 @@ function launcher() {
     },
     get selectedRepo() {
       return this.repos.find((r) => r.id === this.selectedRepoId) || null;
+    },
+    get selectedAgentCredentials() {
+      if (!this.selectedAgentId) return [];
+      return this.agentCredentials.filter(
+        (c) => c.agentProfileId === this.selectedAgentId && c.enabled !== false
+      );
     },
     canLaunch() {
       return !!this.selectedRepoId && !!this.selectedAgentId;
@@ -89,6 +96,7 @@ function launcher() {
           body: JSON.stringify({
             repoId: this.selectedRepoId,
             agentProfileId: this.selectedAgentId,
+            agentCredentialIds: this.selectedCredIds,
           }),
         });
         const data = await res.json();
