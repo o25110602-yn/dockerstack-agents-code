@@ -40,7 +40,7 @@ RUN apk add --no-cache \
     tzdata
 
 # Install antigravity CLI
-RUN curl -fsSL https://antigravity.google/cli/install.sh | sh
+# RUN curl -fsSL https://antigravity.google/cli/install.sh | sh
 
 # Default workdir (entrypoint sẽ symlink về repo path nếu có)
 WORKDIR /workspace

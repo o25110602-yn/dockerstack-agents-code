@@ -1,0 +1,9 @@
+# Thêm vào services/repo-agent-ttyd/.dockerignore
+# (KHÔNG ignore downloads/ — Dockerfile cần COPY nó vào image)
+ 
+# Ignore mọi thứ không cần thiết
+node_modules
+*.log
+.git
+ 
+# downloads/ phải được INCLUDE → KHÔNG liệt kê ở đây

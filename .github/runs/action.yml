@@ -36,18 +36,32 @@ runs:
 
     # Build repo-agent-ttyd:local trước — image này không có trong compose file
     # (spawn động bởi docker-runner.js), nên dc.sh --build không tự build nó.
+    # Đặt vào .github/workflows/ hoặc merge vào workflow hiện có.
+    # Thay thế 2 step "Build repo-agent-ttyd image" cũ.
+
+    # ── Download tool binaries trên runner (có internet) ─────────────
+    - name: Download agent CLI tools
+      shell: bash
+      run: |
+        cd ./services/repo-agent-ttyd
+        bash download-tools.sh
+
+    # ── Build image (Linux) ───────────────────────────────────────────
     - name: Build repo-agent-ttyd image (Linux)
       if: runner.os == 'Linux'
       shell: bash
       run: |
-        docker build --network=host -t repo-agent-ttyd:local ./services/repo-agent-ttyd
+        docker build -t repo-agent-ttyd:local ./services/repo-agent-ttyd
 
+    # ── Build image (Windows/WSL2) ────────────────────────────────────
     - name: Build repo-agent-ttyd image (Windows/WSL2)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
         $wsl = $env:WSL_WORKSPACE
-        wsl -d Ubuntu -- bash -c "cd '$wsl' && docker build --network=host -t repo-agent-ttyd:local ./services/repo-agent-ttyd"
+        # download-tools.sh đã chạy ở step trên (Linux runner context),
+        # nên chỉ cần build thẳng
+        wsl -d Ubuntu -- bash -c "cd '$wsl' && docker build -t repo-agent-ttyd:local ./services/repo-agent-ttyd"
 
     - name: Build & start services (Linux)
       if: runner.os == 'Linux'
