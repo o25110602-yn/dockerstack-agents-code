@@ -47,6 +47,9 @@ function launcher() {
     get selectedRepo() {
       return this.repos.find((r) => r.id === this.selectedRepoId) || null;
     },
+    get activeSessions() {
+      return this.sessions.filter((s) => s.status !== 'closed');
+    },
     selectedAgentCredentials() {
       if (!this.selectedAgentId) return [];
       return this.agentCredentials.filter(

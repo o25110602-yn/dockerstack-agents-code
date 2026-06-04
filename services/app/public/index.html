@@ -372,7 +372,7 @@
                 </button>
               </div>
               
-              <div class="overflow-x-auto border border-border rounded-lg" x-show="sessions.length">
+              <div class="overflow-x-auto border border-border rounded-lg" x-show="activeSessions.length">
                 <table class="w-full text-xs">
                   <thead class="bg-surface-body text-[10px] font-bold text-muted uppercase tracking-wider">
                     <tr>
@@ -385,8 +385,8 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
-                    <template x-for="s in sessions" :key="s.id">
-                      <tr class="hover:bg-surface-hover/80 transition-colors" x-show="s.status !== 'closed'">
+                    <template x-for="s in activeSessions" :key="s.id">
+                      <tr class="hover:bg-surface-hover/80 transition-colors">
                         <td class="py-3 px-4 font-mono font-medium text-primary" x-text="s.slot"></td>
                         <td class="px-4 text-text font-sans font-medium" x-text="s.repoFullName"></td>
                         <td class="px-4 text-text font-sans" x-text="s.agentName"></td>
@@ -424,7 +424,7 @@
                 </table>
               </div>
               <p
-                x-show="!sessions.filter(s => s.status !== 'closed').length"
+                x-show="!activeSessions.length"
                 class="text-xs text-muted italic text-center py-6"
               >
                 Chưa có session nào đang chạy.
