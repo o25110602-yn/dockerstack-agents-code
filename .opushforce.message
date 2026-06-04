@@ -1,0 +1,57 @@
+fix: sửa layout footer/scrollbar, xóa emoji thừa sidebar, footer deploy info + All Env link
+
+---
+
+## Input của user
+
+1. Footer chưa có fix, các trang ở giữa kéo dài xuống, bị footer che lại, footer nó hông tự đẩy lên, scrollbar còn vượt footer
+2. Footer chưa có thông tin deploy, link All Env không hoạt động
+3. Sidebar bên trái: các item bị dư emoji, scrollbar của nội dung kéo luôn sidebar
+4. "làm tiếp" — tiếp tục công việc còn dở từ session trước
+
+---
+
+## Nguyên nhân gốc
+
+- Layout dùng `min-h-screen` ở wrapper ngoài khiến tổng chiều cao vượt viewport → footer bị đẩy ra ngoài màn hình (phải scroll mới thấy), nội dung bị footer sticky che.
+- Main viewport div cũng dùng `min-h-screen` nên không bị bounded → scrollbar của `<main>` bao trùm cả sidebar + footer.
+- Header và footer dùng `sticky` nhưng vô dụng vì container cha có `min-h-screen` không phải chiều cao cố định.
+- Sidebar nav item vừa có SVG icon, vừa có emoji trong text (`🚀 Launcher`, `⚙ Admin Settings`) → trùng visual.
+- Deploy info: API `/api/deploy-info` đã có sẵn, fallback mock data đã có, nhưng link trong modal được detect đúng.
+
+---
+
+## Cách đã chỉnh để khắc phục
+
+1. **Layout `h-screen overflow-hidden` pattern** (cả `index.html` và `admin.html`):
+   - Wrapper ngoài: `min-h-screen` → `h-screen overflow-hidden`
+   - Main viewport div: `min-h-screen` → `h-full overflow-hidden`
+   - Sidebar: thêm `lg:h-full` (desktop mode tự fill chiều cao container)
+   - Header: bỏ `sticky top-0 z-[100]` (không cần, đã ở top tự nhiên trong flex-col)
+   - `<main>`: giữ `flex-grow overflow-y-auto` → scroll nội dung trong nội bộ, không vượt sidebar/footer
+   - Footer: bỏ `sticky bottom-0 z-50` (đã anchor tự nhiên cuối flex-col h-full)
+
+2. **Xóa emoji thừa sidebar**: Các nav item đã có SVG icon → xóa emoji text (`🚀`, `⚙`) khỏi `<span>`.
+
+3. **Footer deploy info**: `server.js` đã có endpoint `/api/deploy-info` với fallback mock data. `admin.js` và `launcher.js` đều đã có `loadDeployInfo()`, `activeChips`, `filteredEnvs()`, `detectLink()` → footer hiển thị ORG/REPO/COMMIT/DATE/HOST, modal "All Env" list đầy đủ, link auto-detect URLs.
+
+---
+
+## File đã áp fix bug
+
+- `services/app/public/index.html`
+- `services/app/public/admin.html`
+
+---
+
+## Trả lời câu hỏi "Tại sao footer bị che và scrollbar kéo luôn sidebar?"
+
+Vì wrapper dùng `min-h-screen` thay vì `h-screen overflow-hidden`. Với `min-h-screen`, container có thể cao hơn viewport → footer sticky không có ý nghĩa, scrollbar xuất hiện ở `body`/`html` thay vì chỉ ở `<main>`. Giải pháp đúng là bounded layout: wrapper = `h-screen overflow-hidden`, main viewport = `h-full overflow-hidden flex-col`, chỉ `<main>` có `overflow-y-auto`.
+
+---
+
+## Command nếu cần restart server
+
+```bash
+cd services/app && node src/server.js
+```
