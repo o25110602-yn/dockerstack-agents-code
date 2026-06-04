@@ -145,3 +145,33 @@ tr:last-child td {
 tr:hover td {
   background-color: var(--surface-hover);
 }
+
+/* Sidebar Nav Items to fix text visibility on hover */
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--sidebar-text);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  text-decoration: none;
+}
+
+.sidebar-nav-item:hover {
+  background-color: var(--sidebar-hover) !important;
+  color: #ffffff !important;
+}
+
+.sidebar-nav-item.active {
+  background-color: var(--sidebar-active) !important;
+  color: var(--primary) !important;
+}
+
+/* Ensure no flashing of unstyled content for Alpine modals */
+[x-cloak] {
+  display: none !important;
+}
+

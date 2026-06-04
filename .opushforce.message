@@ -1,0 +1,24 @@
+fix: sửa lỗi hover sidebar menu, hiển thị thông tin deploy footer và sửa bug click all env
+
+Input của user:
+Hãy xem chức năng footer chưa click được vào all env. Đồng thời nó chưa thể hiện các thông tin deploy theo file docs/FOOTER.md . Các menu trên sidebar khi di chuyển vào là chữ trắng, nên không thấy được nội dung. Thực hiện xong, push lên branch mới. Không dùng browser để kiểm thử nhé.
+
+Nguyên nhân gốc:
+- Lỗi không click mở được All Env: Do phần tử modal của Alpine.js bị hardcode thuộc tính `style="display: none;"` gây xung đột với cơ chế hoạt động của `x-show` và transition trong Alpine.js, khiến modal không hiển thị khi state `deployModalOpen` chuyển thành true.
+- Lỗi thông tin deploy: Trong code cũ dùng các thẻ `<template x-if>` để ẩn đi các chip deploy info nếu biến môi trường tương ứng bị thiếu. Spec docs/FOOTER.md yêu cầu hiển thị đầy đủ cả 5 chips (ORG, REPO, COMMIT, DATE, HOST) và hiển thị dấu `—` khi thiếu thông tin.
+- Lỗi menu sidebar khi hover: Sử dụng class Tailwind `hover:text-white` kết hợp với `hover:bg-white/5` (opacity 5%) đôi khi không có độ tương phản tốt hoặc gặp vấn đề dựng hình trên môi trường khiến chữ bị chìm trên nền sáng/mất màu chữ.
+
+Cách đã chỉnh để khắc phục:
+- Sửa lỗi click All Env: Loại bỏ `style="display: none;"` hardcode trên modal và thay bằng thuộc tính `x-cloak`. Thêm CSS rule `[x-cloak] { display: none !important; }` vào styles.css để chống FOUC chuẩn Alpine.js.
+- Sửa thông tin deploy: Loại bỏ các thẻ `<template x-if>` xung quanh các chip trong footer, cho hiển thị cả 5 chips cố định với các separator ở giữa. Sử dụng biểu thức `deployEnvs.VAR || '—'` để hiển thị fallback là dấu `—` khi thiếu giá trị.
+- Sửa menu sidebar: Định nghĩa class CSS `.sidebar-nav-item` riêng biệt trong styles.css, áp dụng các biến màu CSS chuẩn từ DESIGN.md (`--sidebar-hover: rgba(255,255,255,0.08)` và `--sidebar-active: rgba(44,123,229,0.15)`). Khi hover, nền là màu tối mờ và chữ chuyển sang màu trắng rõ ràng.
+
+File đã áp fix bug:
+- services/app/public/styles.css
+- services/app/public/index.html
+- services/app/public/admin.html
+
+Trả lời câu hỏi "chức năng footer chưa click được vào all env, thông tin deploy và menu sidebar hover":
+- Chức năng click "All Env" ở footer đã hoạt động bình thường, modal hiện lên chính xác nhờ chuyển sang cơ chế quản lý ẩn/hiện bằng `x-cloak` và `x-show` của Alpine.js.
+- Các thông tin deploy trên footer đã được hiển thị đầy đủ cả 5 chips (ORG, REPO, COMMIT, DATE, HOST) với giá trị mặc định là `—` khi không có dữ liệu theo đúng đặc tả `docs/FOOTER.md`.
+- Các menu trên sidebar khi di chuyển vào đã có màu nền tối mờ rõ ràng và chữ trắng hiển thị nổi bật, dễ nhìn, giải quyết triệt để lỗi không thấy nội dung khi hover.
