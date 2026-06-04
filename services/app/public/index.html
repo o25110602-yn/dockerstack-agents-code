@@ -106,11 +106,11 @@
             MAIN MENU
           </div>
           <nav class="space-y-1 px-2 mt-2">
-            <a href="/" class="flex items-center gap-3 px-4 py-2.5 rounded-md font-medium text-[13px] transition-colors bg-primary/15 text-primary">
+            <a href="/" class="sidebar-nav-item active">
               <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
               <span class="font-sans">Launcher</span>
             </a>
-            <a href="/admin" class="flex items-center gap-3 px-4 py-2.5 rounded-md font-medium text-[13px] transition-colors hover:bg-white/5 text-sidebar-text hover:text-white">
+            <a href="/admin" class="sidebar-nav-item">
               <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               <span class="font-sans">Admin Settings</span>
             </a>
@@ -440,52 +440,34 @@
             <!-- Chips: horizontally scrollable -->
             <div class="flex items-center overflow-x-auto scrollbar-none flex-grow min-w-0 h-full">
               <!-- ORG -->
-              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_ORG">
-                <div class="flex items-center flex-shrink-0">
-                  <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">ORG</span>
-                  <span class="text-xs text-text ml-1 max-w-[160px] truncate leading-none" :title="deployEnvs._DOTENVRTDB_RUNNER_ORG" x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG"></span>
-                  <template x-if="deployEnvs._DOTENVRTDB_RUNNER_REPO || deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID || deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT || deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
-                    <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
-                  </template>
-                </div>
-              </template>
+              <div class="flex items-center flex-shrink-0">
+                <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">ORG</span>
+                <span class="text-xs text-text ml-1 max-w-[160px] truncate leading-none" :title="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'" x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'"></span>
+                <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
+              </div>
               <!-- REPO -->
-              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_REPO">
-                <div class="flex items-center flex-shrink-0">
-                  <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">REPO</span>
-                  <span class="text-xs text-text ml-1 max-w-[160px] truncate leading-none" :title="deployEnvs._DOTENVRTDB_RUNNER_REPO" x-text="deployEnvs._DOTENVRTDB_RUNNER_REPO"></span>
-                  <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID || deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT || deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
-                    <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
-                  </template>
-                </div>
-              </template>
+              <div class="flex items-center flex-shrink-0">
+                <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">REPO</span>
+                <span class="text-xs text-text ml-1 max-w-[160px] truncate leading-none" :title="deployEnvs._DOTENVRTDB_RUNNER_REPO || '—'" x-text="deployEnvs._DOTENVRTDB_RUNNER_REPO || '—'"></span>
+                <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
+              </div>
               <!-- COMMIT -->
-              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID">
-                <div class="flex items-center flex-shrink-0">
-                  <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">COMMIT</span>
-                  <span class="text-xs text-text font-mono ml-1 leading-none" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID"></span>
-                  <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT || deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
-                    <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
-                  </template>
-                </div>
-              </template>
+              <div class="flex items-center flex-shrink-0">
+                <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">COMMIT</span>
+                <span class="text-xs text-text font-mono ml-1 leading-none" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID || '—'"></span>
+                <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
+              </div>
               <!-- DATE -->
-              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT">
-                <div class="flex items-center flex-shrink-0">
-                  <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">DATE</span>
-                  <span class="text-xs text-text font-mono ml-1 leading-none" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT"></span>
-                  <template x-if="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
-                    <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
-                  </template>
-                </div>
-              </template>
+              <div class="flex items-center flex-shrink-0">
+                <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">DATE</span>
+                <span class="text-xs text-text font-mono ml-1 leading-none" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT || '—'"></span>
+                <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
+              </div>
               <!-- HOST -->
-              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
-                <div class="flex items-center flex-shrink-0">
-                  <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">HOST</span>
-                  <span class="text-xs text-text ml-1 leading-none" x-text="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE"></span>
-                </div>
-              </template>
+              <div class="flex items-center flex-shrink-0">
+                <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">HOST</span>
+                <span class="text-xs text-text ml-1 leading-none" x-text="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE || '—'"></span>
+              </div>
             </div>
 
             <!-- All Env Button: always visible at right -->
@@ -506,21 +488,15 @@
             <!-- Row 1: COMMIT + DATE + env button -->
             <div class="flex items-center justify-between w-full">
               <div class="flex items-center overflow-x-auto scrollbar-none flex-1 min-w-0">
-                <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID">
-                  <div class="flex items-center flex-shrink-0">
-                    <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">COMMIT</span>
-                    <span class="text-[11px] text-text font-mono ml-1" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID"></span>
-                    <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT">
-                      <div class="w-px h-2.5 bg-border mx-2 flex-shrink-0"></div>
-                    </template>
-                  </div>
-                </template>
-                <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT">
-                  <div class="flex items-center flex-shrink-0">
-                    <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">DATE</span>
-                    <span class="text-[11px] text-text font-mono ml-1" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT"></span>
-                  </div>
-                </template>
+                <div class="flex items-center flex-shrink-0">
+                  <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">COMMIT</span>
+                  <span class="text-[11px] text-text font-mono ml-1" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID || '—'"></span>
+                  <div class="w-px h-2.5 bg-border mx-2 flex-shrink-0"></div>
+                </div>
+                <div class="flex items-center flex-shrink-0">
+                  <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">DATE</span>
+                  <span class="text-[11px] text-text font-mono ml-1" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT || '—'"></span>
+                </div>
               </div>
               <!-- Mobile env button: 44×44 touch target -->
               <button
@@ -533,21 +509,15 @@
             </div>
             <!-- Row 2: ORG + HOST (REPO hidden on mobile per spec) -->
             <div class="flex items-center overflow-x-auto scrollbar-none pr-12">
-              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_ORG">
-                <div class="flex items-center flex-shrink-0">
-                  <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">ORG</span>
-                  <span class="text-[11px] text-text ml-1 max-w-[120px] truncate" :title="deployEnvs._DOTENVRTDB_RUNNER_ORG" x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG"></span>
-                  <template x-if="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
-                    <div class="w-px h-2.5 bg-border mx-2 flex-shrink-0"></div>
-                  </template>
-                </div>
-              </template>
-              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
-                <div class="flex items-center flex-shrink-0">
-                  <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">HOST</span>
-                  <span class="text-[11px] text-text ml-1 max-w-[120px] truncate" :title="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE" x-text="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE"></span>
-                </div>
-              </template>
+              <div class="flex items-center flex-shrink-0">
+                <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">ORG</span>
+                <span class="text-[11px] text-text ml-1 max-w-[120px] truncate" :title="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'" x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'"></span>
+                <div class="w-px h-2.5 bg-border mx-2 flex-shrink-0"></div>
+              </div>
+              <div class="flex items-center flex-shrink-0">
+                <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">HOST</span>
+                <span class="text-[11px] text-text ml-1 max-w-[120px] truncate" :title="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE || '—'" x-text="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE || '—'"></span>
+              </div>
             </div>
           </div>
         </footer>
@@ -565,7 +535,7 @@
       x-transition:leave="transition ease-in duration-100"
       x-transition:leave-start="opacity-100"
       x-transition:leave-end="opacity-0"
-      style="display: none;"
+      x-cloak
     >
       <!-- Backdrop -->
       <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-[1px]" @click="deployModalOpen = false"></div>
@@ -653,7 +623,7 @@
     </div>
 
     <!-- Custom Confirmation Modal -->
-    <div x-show="confirmModalOpen" class="fixed inset-0 z-[1100] flex items-center justify-center p-4" x-transition style="display: none;">
+    <div x-show="confirmModalOpen" class="fixed inset-0 z-[1100] flex items-center justify-center p-4" x-transition x-cloak>
       <!-- Modal Overlay -->
       <div class="fixed inset-0 bg-slate-900/50" @click="confirmModalOpen = false"></div>
       
