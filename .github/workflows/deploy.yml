@@ -8,6 +8,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**/*.md'
   schedule:
     - cron: "3 0 * * *" # 07:03 ICT
     - cron: "3 1 * * *" # 08:03 ICT
