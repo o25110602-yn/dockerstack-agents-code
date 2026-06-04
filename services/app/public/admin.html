@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
@@ -6,88 +6,87 @@
     <title>Repo Agent — Admin</title>
     <!-- Prevent FOUC -->
     <script>
-      const theme = localStorage.getItem('theme');
-      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (theme === 'dark' || (!theme && systemDark)) {
-        document.documentElement.classList.add('dark');
+      const theme = localStorage.getItem("theme");
+      const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (theme === "dark" || (!theme && systemDark)) {
+        document.documentElement.classList.add("dark");
       } else {
-        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.remove("dark");
       }
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
-        darkMode: 'class',
+        darkMode: "class",
         theme: {
           extend: {
             colors: {
               primary: {
-                DEFAULT: '#2c7be5',
-                light: '#d5e5fa',
-                dark: '#1a68c8',
+                DEFAULT: "#2c7be5",
+                light: "#d5e5fa",
+                dark: "#1a68c8",
               },
               success: {
-                DEFAULT: '#00d27a',
-                light: '#ccf6e4',
-                dark: '#00864e',
+                DEFAULT: "#00d27a",
+                light: "#ccf6e4",
+                dark: "#00864e",
               },
               warning: {
-                DEFAULT: '#f5803e',
-                light: '#fde6d8',
-                dark: '#c45111',
+                DEFAULT: "#f5803e",
+                light: "#fde6d8",
+                dark: "#c45111",
               },
               danger: {
-                DEFAULT: '#e63757',
-                light: '#fce8eb',
-                dark: '#c0002e',
+                DEFAULT: "#e63757",
+                light: "#fce8eb",
+                dark: "#c0002e",
               },
               info: {
-                DEFAULT: '#27bcfd',
-                light: '#d5f0fe',
-                dark: '#0084b0',
+                DEFAULT: "#27bcfd",
+                light: "#d5f0fe",
+                dark: "#0084b0",
               },
-              dark: '#0b1727',
-              text: 'var(--clr-text)',
-              muted: 'var(--clr-muted)',
-              border: 'var(--clr-border)',
-              'border-light': 'var(--clr-border-light)',
-              surface: 'var(--surface)',
-              'surface-body': 'var(--surface-body)',
-              'surface-hover': 'var(--surface-hover)',
-              'surface-input': 'var(--surface-input)',
-              'surface-sidebar': 'var(--surface-sidebar)',
-              'sidebar-text': 'var(--sidebar-text)',
+              dark: "#0b1727",
+              text: "var(--clr-text)",
+              muted: "var(--clr-muted)",
+              border: "var(--clr-border)",
+              "border-light": "var(--clr-border-light)",
+              surface: "var(--surface)",
+              "surface-body": "var(--surface-body)",
+              "surface-hover": "var(--surface-hover)",
+              "surface-input": "var(--surface-input)",
+              "surface-sidebar": "var(--surface-sidebar)",
+              "sidebar-text": "var(--sidebar-text)",
             },
             fontFamily: {
-              sans: ['Poppins', 'system-ui', '-apple-system', 'sans-serif'],
-              mono: ['SFMono-Regular', 'Consolas', 'Liberation Mono', 'monospace'],
+              sans: ["Poppins", "system-ui", "-apple-system", "sans-serif"],
+              mono: ["SFMono-Regular", "Consolas", "Liberation Mono", "monospace"],
             },
             borderRadius: {
-              sm: '4px',
-              md: '6px',
-              lg: '8px',
-              xl: '12px',
-              '2xl': '16px',
+              sm: "4px",
+              md: "6px",
+              lg: "8px",
+              xl: "12px",
+              "2xl": "16px",
             },
             boxShadow: {
-              raised: 'var(--card-shadow)',
-              floating: 'var(--modal-shadow)',
-            }
-          }
-        }
-      }
+              raised: "var(--card-shadow)",
+              floating: "var(--modal-shadow)",
+            },
+          },
+        },
+      };
     </script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"
-    ></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body class="bg-surface-body text-text min-h-screen" x-data="admin()" x-init="init()">
-    
     <div class="flex h-screen overflow-hidden w-full">
       <!-- Sidebar -->
-      <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" class="fixed inset-y-0 left-0 w-[300px] bg-surface-sidebar text-sidebar-text z-[1000] lg:static lg:translate-x-0 lg:h-full transition-transform duration-250 ease-in-out flex flex-col flex-shrink-0 border-r border-transparent select-none">
+      <aside
+        :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+        class="fixed inset-y-0 left-0 w-[300px] bg-surface-sidebar text-sidebar-text z-[1000] lg:static lg:translate-x-0 lg:h-full transition-transform duration-250 ease-in-out flex flex-col flex-shrink-0 border-r border-transparent select-none"
+      >
         <!-- Sidebar Logo zone -->
         <div class="h-[60px] px-5 flex items-center justify-between border-b border-white/10 flex-shrink-0">
           <div class="flex items-center gap-2">
@@ -96,37 +95,47 @@
           </div>
           <!-- Hamburger close on mobile -->
           <button @click="sidebarOpen = false" class="lg:hidden p-1.5 text-sidebar-text hover:text-white transition" title="Đóng menu">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
-        
+
         <!-- Sidebar navigation -->
         <div class="flex-grow overflow-y-auto py-4">
-          <div class="px-6 py-2 text-[10px] font-bold uppercase tracking-wider text-[#6e7d9a] font-sans">
-            MAIN MENU
-          </div>
+          <div class="px-6 py-2 text-[10px] font-bold uppercase tracking-wider sidebar-section-label font-sans">MAIN MENU</div>
           <nav class="space-y-1 px-2 mt-2">
             <a href="/" class="sidebar-nav-item">
-              <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
               <span class="font-sans">Launcher</span>
             </a>
             <a href="/admin" class="sidebar-nav-item active">
-              <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
               <span class="font-sans">Admin Settings</span>
             </a>
           </nav>
         </div>
-        
+
         <!-- Sidebar bottom status card -->
-        <div class="m-4 p-3 bg-white/5 border border-white/10 rounded-lg text-xs">
-          <div class="text-[#6e7d9a] font-bold uppercase tracking-wider text-[10px] mb-1 font-sans">Status</div>
+        <div class="sidebar-status-card text-xs">
+          <div class="sidebar-section-label font-bold uppercase tracking-wider text-[10px] mb-1 font-sans">Status</div>
           <div class="flex items-center gap-1.5 text-emerald-400">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             <span class="font-sans">System online</span>
           </div>
         </div>
       </aside>
-      
+
       <!-- Mobile Sidebar Overlay -->
       <div x-show="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black/40 z-[999] lg:hidden" x-transition:opacity></div>
 
@@ -135,17 +144,41 @@
         <!-- Topbar (60px) -->
         <header class="h-[60px] bg-surface border-b border-border flex items-center justify-between px-4 lg:px-6 flex-shrink-0 select-none z-10">
           <div class="flex items-center gap-3">
-            <button @click="sidebarOpen = true" class="lg:hidden p-2 rounded-full hover:bg-surface-body text-muted hover:text-text transition" title="Mở menu">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <button
+              @click="sidebarOpen = true"
+              class="lg:hidden p-2 rounded-full hover:bg-surface-body text-muted hover:text-text transition"
+              title="Mở menu"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
             <h2 class="text-base font-bold text-text font-sans tracking-tight" x-text="pageTitle"></h2>
           </div>
-          
+
           <div class="flex items-center gap-2">
             <!-- Theme Toggle -->
-            <button @click="toggleTheme()" class="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-text hover:bg-surface-body transition" title="Đổi giao diện">
-              <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
-              <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+            <button
+              @click="toggleTheme()"
+              class="w-9 h-9 rounded-full flex items-center justify-center text-muted hover:text-text hover:bg-surface-body transition"
+              title="Đổi giao diện"
+            >
+              <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"
+                />
+              </svg>
+              <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                />
+              </svg>
             </button>
           </div>
         </header>
@@ -153,7 +186,6 @@
         <!-- Content Area -->
         <main class="flex-grow overflow-y-auto p-4 lg:p-6">
           <div class="max-w-6xl mx-auto space-y-6">
-            
             <header class="mb-4">
               <h1 class="text-xl font-bold tracking-tight text-text font-sans">⚙ Admin Management</h1>
               <p class="text-xs text-muted mt-1">Cấu hình thông tin Git, Agents, Credentials và quản lý slot chạy.</p>
@@ -180,7 +212,7 @@
             ></div>
 
             <!-- ===== Git Credentials ===== -->
-            <section x-show="tab === 'git'" class="space-y-6" style="display: none;">
+            <section x-show="tab === 'git'" class="space-y-6" style="display: none">
               <div class="bg-surface border border-transparent rounded-lg shadow-raised p-5">
                 <h2 class="font-semibold text-text text-sm mb-3">Add Git Credential</h2>
                 <div class="grid md:grid-cols-2 gap-4">
@@ -255,39 +287,17 @@
                           <td class="text-xs text-muted" x-text="(g.orgs || []).join(', ')"></td>
                           <td class="font-mono text-[10px] text-muted" x-text="g.tokenPreview"></td>
                           <td>
-                            <input
-                              type="checkbox"
-                              :checked="g.enabled"
-                              @change="toggleGit(g.id, $event.target.checked)"
-                              class="accent-primary"
-                            />
+                            <input type="checkbox" :checked="g.enabled" @change="toggleGit(g.id, $event.target.checked)" class="accent-primary" />
                           </td>
                           <td class="text-right pr-3 space-x-2">
-                            <button
-                              @click="researchGit(g.id)"
-                              class="text-[11px] font-medium text-primary hover:underline"
-                            >
-                              Research
-                            </button>
-                            <button
-                              @click="testGit(g.id)"
-                              class="text-[11px] font-medium text-muted hover:underline"
-                            >
-                              Test
-                            </button>
-                            <button
-                              @click="deleteGit(g.id)"
-                              class="text-[11px] font-medium text-danger hover:underline"
-                            >
-                              Xóa
-                            </button>
+                            <button @click="researchGit(g.id)" class="text-[11px] font-medium text-primary hover:underline">Research</button>
+                            <button @click="testGit(g.id)" class="text-[11px] font-medium text-muted hover:underline">Test</button>
+                            <button @click="deleteGit(g.id)" class="text-[11px] font-medium text-danger hover:underline">Xóa</button>
                           </td>
                         </tr>
                       </template>
                       <tr x-show="!gitCreds.length">
-                        <td colspan="7" class="text-center text-muted italic py-6">
-                          Chưa có Git Credential nào.
-                        </td>
+                        <td colspan="7" class="text-center text-muted italic py-6">Chưa có Git Credential nào.</td>
                       </tr>
                     </tbody>
                   </table>
@@ -296,7 +306,11 @@
             </section>
 
             <!-- ===== Repository Cache ===== -->
-            <section x-show="tab === 'repos'" class="bg-surface border border-transparent rounded-lg shadow-raised overflow-hidden" style="display: none;">
+            <section
+              x-show="tab === 'repos'"
+              class="bg-surface border border-transparent rounded-lg shadow-raised overflow-hidden"
+              style="display: none"
+            >
               <div class="p-4 flex items-center gap-3 border-b border-border">
                 <input
                   x-model="repoSearch"
@@ -348,9 +362,7 @@
                       </tr>
                     </template>
                     <tr x-show="!filteredRepos().length">
-                      <td colspan="6" class="text-center text-muted italic py-6">
-                        Chưa có repo nào trong cache. Add Git Credential để fetch.
-                      </td>
+                      <td colspan="6" class="text-center text-muted italic py-6">Chưa có repo nào trong cache. Add Git Credential để fetch.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -358,7 +370,7 @@
             </section>
 
             <!-- ===== Agent Profiles ===== -->
-            <section x-show="tab === 'agents'" class="space-y-6" style="display: none;">
+            <section x-show="tab === 'agents'" class="space-y-6" style="display: none">
               <div class="bg-surface border border-transparent rounded-lg shadow-raised p-5">
                 <h2 class="font-semibold text-text text-sm mb-3">Add Agent Profile</h2>
                 <div class="grid md:grid-cols-3 gap-4">
@@ -447,12 +459,7 @@
                             />
                           </td>
                           <td class="text-right pr-3">
-                            <button
-                              @click="deleteAgent(a.id)"
-                              class="text-[11px] font-medium text-danger hover:underline"
-                            >
-                              Xóa
-                            </button>
+                            <button @click="deleteAgent(a.id)" class="text-[11px] font-medium text-danger hover:underline">Xóa</button>
                           </td>
                         </tr>
                       </template>
@@ -463,16 +470,13 @@
             </section>
 
             <!-- ===== Agent Credentials ===== -->
-            <section x-show="tab === 'agent-creds'" class="space-y-6" style="display: none;">
+            <section x-show="tab === 'agent-creds'" class="space-y-6" style="display: none">
               <div class="bg-surface border border-transparent rounded-lg shadow-raised p-5">
                 <h2 class="font-semibold text-text text-sm mb-3">Add Agent Credential</h2>
                 <div class="grid md:grid-cols-2 gap-4">
                   <label class="text-xs text-text font-medium flex flex-col gap-1">
                     Agent profile
-                    <select
-                      x-model="newCred.agentProfileId"
-                      class="w-full border border-border bg-surface rounded-md px-3 py-1.5 focus:outline-none"
-                    >
+                    <select x-model="newCred.agentProfileId" class="w-full border border-border bg-surface rounded-md px-3 py-1.5 focus:outline-none">
                       <option value="">— chọn agent —</option>
                       <template x-for="a in agents" :key="a.id">
                         <option :value="a.id" x-text="`${a.label} (${a.name})`"></option>
@@ -481,10 +485,7 @@
                   </label>
                   <label class="text-xs text-text font-medium flex flex-col gap-1">
                     Type
-                    <select
-                      x-model="newCred.type"
-                      class="w-full border border-border bg-surface rounded-md px-3 py-1.5 focus:outline-none"
-                    >
+                    <select x-model="newCred.type" class="w-full border border-border bg-surface rounded-md px-3 py-1.5 focus:outline-none">
                       <option value="file">file (chép config/auth file)</option>
                       <option value="script">script (chạy bootstrap)</option>
                       <option value="env">env (inject env vars)</option>
@@ -500,7 +501,7 @@
                       class="w-full border border-border bg-surface rounded-md px-3 py-1.5 focus:outline-none"
                     />
                   </label>
-                  
+
                   <template x-if="['file','capture'].includes(newCred.type)">
                     <div class="md:col-span-2 space-y-4">
                       <label class="text-xs text-text font-medium flex flex-col gap-1 block">
@@ -531,7 +532,7 @@
                       </label>
                     </div>
                   </template>
-                  
+
                   <template x-if="newCred.type === 'script'">
                     <label class="text-xs text-text font-medium flex flex-col gap-1 md:col-span-2 block">
                       Bootstrap script (sh)
@@ -543,7 +544,7 @@
                       ></textarea>
                     </label>
                   </template>
-                  
+
                   <template x-if="newCred.type === 'env'">
                     <label class="text-xs text-text font-medium flex flex-col gap-1 md:col-span-2 block">
                       Env vars (1 dòng / cặp <code>KEY=VALUE</code>)
@@ -600,19 +601,12 @@
                             />
                           </td>
                           <td class="text-right pr-3">
-                            <button
-                              @click="deleteCred(c.id)"
-                              class="text-[11px] font-medium text-danger hover:underline"
-                            >
-                              Xóa
-                            </button>
+                            <button @click="deleteCred(c.id)" class="text-[11px] font-medium text-danger hover:underline">Xóa</button>
                           </td>
                         </tr>
                       </template>
                       <tr x-show="!agentCreds.length">
-                        <td colspan="6" class="text-center text-muted italic py-6">
-                          Chưa có Agent Credential.
-                        </td>
+                        <td colspan="6" class="text-center text-muted italic py-6">Chưa có Agent Credential.</td>
                       </tr>
                     </tbody>
                   </table>
@@ -621,7 +615,7 @@
             </section>
 
             <!-- ===== Slots ===== -->
-            <section x-show="tab === 'slots'" class="bg-surface border border-transparent rounded-lg shadow-raised p-5" style="display: none;">
+            <section x-show="tab === 'slots'" class="bg-surface border border-transparent rounded-lg shadow-raised p-5" style="display: none">
               <h2 class="font-semibold text-text text-sm mb-3">TTYD Slot Pool</h2>
               <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-10 gap-2 text-[10px] font-mono select-none">
                 <template x-for="s in slots" :key="s.slot">
@@ -670,13 +664,21 @@
               <!-- ORG -->
               <div class="flex items-center flex-shrink-0">
                 <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">ORG</span>
-                <span class="text-xs text-text ml-1 max-w-[160px] truncate leading-none" :title="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'" x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'"></span>
+                <span
+                  class="text-xs text-text ml-1 max-w-[160px] truncate leading-none"
+                  :title="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'"
+                  x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'"
+                ></span>
                 <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
               </div>
               <!-- REPO -->
               <div class="flex items-center flex-shrink-0">
                 <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">REPO</span>
-                <span class="text-xs text-text ml-1 max-w-[160px] truncate leading-none" :title="deployEnvs._DOTENVRTDB_RUNNER_REPO || '—'" x-text="deployEnvs._DOTENVRTDB_RUNNER_REPO || '—'"></span>
+                <span
+                  class="text-xs text-text ml-1 max-w-[160px] truncate leading-none"
+                  :title="deployEnvs._DOTENVRTDB_RUNNER_REPO || '—'"
+                  x-text="deployEnvs._DOTENVRTDB_RUNNER_REPO || '—'"
+                ></span>
                 <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
               </div>
               <!-- COMMIT -->
@@ -707,7 +709,15 @@
             >
               <span class="hidden sm:inline">⚙ All Env</span>
               <span class="sm:hidden">⚙</span>
-              <svg class="w-3 h-3 transition-transform duration-200" :class="deployModalOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+              <svg
+                class="w-3 h-3 transition-transform duration-200"
+                :class="deployModalOpen ? 'rotate-180' : ''"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
           </div>
 
@@ -739,12 +749,20 @@
             <div class="flex items-center overflow-x-auto scrollbar-none pr-12">
               <div class="flex items-center flex-shrink-0">
                 <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">ORG</span>
-                <span class="text-[11px] text-text ml-1 max-w-[120px] truncate" :title="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'" x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'"></span>
+                <span
+                  class="text-[11px] text-text ml-1 max-w-[120px] truncate"
+                  :title="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'"
+                  x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG || '—'"
+                ></span>
                 <div class="w-px h-2.5 bg-border mx-2 flex-shrink-0"></div>
               </div>
               <div class="flex items-center flex-shrink-0">
                 <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">HOST</span>
-                <span class="text-[11px] text-text ml-1 max-w-[120px] truncate" :title="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE || '—'" x-text="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE || '—'"></span>
+                <span
+                  class="text-[11px] text-text ml-1 max-w-[120px] truncate"
+                  :title="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE || '—'"
+                  x-text="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE || '—'"
+                ></span>
               </div>
             </div>
           </div>
@@ -790,7 +808,9 @@
             class="w-8 h-8 flex items-center justify-center text-muted hover:text-text transition-colors rounded-md hover:bg-surface-body ml-4 flex-shrink-0"
             title="Close"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
@@ -827,7 +847,14 @@
                           rel="noopener noreferrer"
                           class="text-primary hover:underline inline-flex items-center gap-1 break-all font-medium"
                         >
-                          <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                          <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            />
+                          </svg>
                           <span x-text="item.link.text" class="break-all"></span>
                         </a>
                       </template>
@@ -838,10 +865,16 @@
                   </tr>
                 </template>
                 <template x-if="filteredEnvs().length === 0 && deploySearchQuery">
-                  <tr><td colspan="2" class="text-center py-8 text-xs text-muted italic">No variables match "<span x-text="deploySearchQuery" class="font-medium"></span>"</td></tr>
+                  <tr>
+                    <td colspan="2" class="text-center py-8 text-xs text-muted italic">
+                      No variables match "<span x-text="deploySearchQuery" class="font-medium"></span>"
+                    </td>
+                  </tr>
                 </template>
                 <template x-if="filteredEnvs().length === 0 && !deploySearchQuery">
-                  <tr><td colspan="2" class="text-center py-8 text-xs text-muted italic">No deploy environment variables found</td></tr>
+                  <tr>
+                    <td colspan="2" class="text-center py-8 text-xs text-muted italic">No deploy environment variables found</td>
+                  </tr>
                 </template>
               </tbody>
             </table>
@@ -854,23 +887,44 @@
     <div x-show="confirmModalOpen" class="fixed inset-0 z-[1100] flex items-center justify-center p-4" x-transition x-cloak>
       <!-- Modal Overlay -->
       <div class="fixed inset-0 bg-slate-900/50" @click="confirmModalOpen = false"></div>
-      
+
       <!-- Modal Content -->
-      <div class="relative bg-surface rounded-xl shadow-floating w-[400px] max-w-[calc(100vw-32px)] flex flex-col overflow-hidden z-10" x-transition:enter="transition ease-out duration-250" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+      <div
+        class="relative bg-surface rounded-xl shadow-floating w-[400px] max-w-[calc(100vw-32px)] flex flex-col overflow-hidden z-10"
+        x-transition:enter="transition ease-out duration-250"
+        x-transition:enter-start="opacity-0 translate-y-2"
+        x-transition:enter-end="opacity-100 translate-y-0"
+      >
         <!-- Header -->
         <div class="px-6 py-5 border-b border-border relative flex-shrink-0 pr-12">
           <h4 class="text-base font-semibold text-text font-sans" x-text="confirmModalTitle"></h4>
           <!-- Close button -->
-          <button @click="confirmModalOpen = false" class="absolute top-2.5 right-2.5 w-11 h-11 flex items-center justify-center text-muted hover:text-text transition-colors" title="Đóng">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          <button
+            @click="confirmModalOpen = false"
+            class="absolute top-2.5 right-2.5 w-11 h-11 flex items-center justify-center text-muted hover:text-text transition-colors"
+            title="Đóng"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
         <!-- Body -->
         <div class="p-6 text-xs text-text font-sans" x-text="confirmModalMessage"></div>
         <!-- Footer -->
         <div class="px-6 py-4 bg-surface-body/40 border-t border-border flex justify-end gap-2 flex-row max-xs:flex-col">
-          <button @click="confirmModalOpen = false" class="px-4 py-2 border border-border rounded-md text-xs font-medium text-muted hover:bg-surface-body hover:text-text transition font-sans">Hủy</button>
-          <button @click="executeConfirm()" class="px-4 py-2 bg-danger text-white hover:bg-danger-dark rounded-md text-xs font-medium transition font-sans">Đồng ý</button>
+          <button
+            @click="confirmModalOpen = false"
+            class="px-4 py-2 border border-border rounded-md text-xs font-medium text-muted hover:bg-surface-body hover:text-text transition font-sans"
+          >
+            Hủy
+          </button>
+          <button
+            @click="executeConfirm()"
+            class="px-4 py-2 bg-danger text-white hover:bg-danger-dark rounded-md text-xs font-medium transition font-sans"
+          >
+            Đồng ý
+          </button>
         </div>
       </div>
     </div>

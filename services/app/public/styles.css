@@ -31,6 +31,9 @@
   --surface-hover: #f9fbfd;
   --surface-input: #ffffff;
   --surface-sidebar: #0b1727;
+
+/* Light mode: sidebar intentionally stays dark (navy), 
+   but section label and divider adapt */
   
   --clr-text: #344050;
   --clr-muted: #748194;
@@ -38,6 +41,8 @@
   --clr-border-light: #edf2f9;
   
   --sidebar-text: #9da9bb;
+  --sidebar-section-label: #6e7d9a;
+  --sidebar-divider: rgba(255, 255, 255, 0.10);
   --sidebar-hover: rgba(255, 255, 255, 0.08);
   --sidebar-active: rgba(44, 123, 229, 0.15);
   
@@ -58,6 +63,8 @@ html.dark {
   --clr-border-light: #162a45;
   
   --sidebar-text: #9da9bb;
+  --sidebar-section-label: #4e5f7a;
+  --sidebar-divider: rgba(255, 255, 255, 0.08);
   --sidebar-hover: rgba(255, 255, 255, 0.08);
   --sidebar-active: rgba(44, 123, 229, 0.15);
   
@@ -181,4 +188,3 @@ tr:hover td {
 [x-cloak] {
   display: none !important;
 }
-

@@ -6,6 +6,7 @@ function launcher() {
     agents: [],
     agentCredentials: [],
     sessions: [],
+    sessionsError: "",
     repoSearch: "",
     selectedRepoId: "",
     selectedAgentId: "",
@@ -27,34 +28,28 @@ function launcher() {
       // Check theme on init
       this.darkMode = document.documentElement.classList.contains("dark");
 
-      await Promise.all([
-        this.loadRepos(),
-        this.loadAgents(),
-        this.loadAgentCredentials(),
-        this.loadSessions(),
-        this.loadDeployInfo(),
-      ]);
+      await Promise.all([this.loadRepos(), this.loadAgents(), this.loadAgentCredentials(), this.loadSessions(), this.loadDeployInfo()]);
       // Poll sessions every 5s.
       this.pollHandle = setInterval(() => this.loadSessions(), 5000);
 
       // Watch selectedAgentId to dynamically update selectedCredIds
       this.$watch("selectedAgentId", (val) => {
-        this.selectedCredIds = this.agentCredentials
-          .filter((c) => c.agentProfileId === val && c.enabled !== false)
-          .map((c) => c.id);
+        if (val) {
+          this.selectedCredIds = this.agentCredentials.filter((c) => c.agentProfileId === val && c.enabled !== false).map((c) => c.id);
+        } else {
+          this.selectedCredIds = [];
+        }
       });
     },
     get selectedRepo() {
       return this.repos.find((r) => r.id === this.selectedRepoId) || null;
     },
     get activeSessions() {
-      return this.sessions.filter((s) => s.status !== 'closed');
+      return this.sessions.filter((s) => s.status !== "closed");
     },
     selectedAgentCredentials() {
       if (!this.selectedAgentId) return [];
-      return this.agentCredentials.filter(
-        (c) => c.agentProfileId === this.selectedAgentId && c.enabled !== false
-      );
+      return this.agentCredentials.filter((c) => c.agentProfileId === this.selectedAgentId && c.enabled !== false);
     },
     canLaunch() {
       return !!this.selectedRepoId && !!this.selectedAgentId;
@@ -63,16 +58,10 @@ function launcher() {
       const q = this.repoSearch.trim().toLowerCase();
       const enabled = this.repos.filter((r) => r.enabled !== false);
       if (!q) return enabled;
-      return enabled.filter(
-        (r) =>
-          (r.fullName || "").toLowerCase().includes(q) ||
-          (r.description || "").toLowerCase().includes(q)
-      );
+      return enabled.filter((r) => (r.fullName || "").toLowerCase().includes(q) || (r.description || "").toLowerCase().includes(q));
     },
     agentCredCount(agentId) {
-      return this.agentCredentials.filter(
-        (c) => c.agentProfileId === agentId && c.enabled !== false
-      ).length;
+      return this.agentCredentials.filter((c) => c.agentProfileId === agentId && c.enabled !== false).length;
     },
     async loadRepos() {
       try {
@@ -94,16 +83,28 @@ function launcher() {
       try {
         const r = await fetch("/api/agent-credentials").then((r) => r.json());
         this.agentCredentials = r.items || [];
+        // Re-apply credential selection if an agent is already selected
+        if (this.selectedAgentId) {
+          this.selectedCredIds = this.agentCredentials
+            .filter((c) => c.agentProfileId === this.selectedAgentId && c.enabled !== false)
+            .map((c) => c.id);
+        }
       } catch (err) {
         // not fatal
       }
     },
     async loadSessions() {
       try {
-        const r = await fetch("/api/sessions").then((r) => r.json());
-        this.sessions = r.items || [];
+        const res = await fetch("/api/sessions");
+        if (!res.ok) {
+          this.sessionsError = `Load sessions failed: HTTP ${res.status}`;
+          return;
+        }
+        const r = await res.json();
+        this.sessions = r.items || r.sessions || (Array.isArray(r) ? r : []);
+        this.sessionsError = "";
       } catch (err) {
-        // not fatal
+        this.sessionsError = `Load sessions failed: ${err.message}`;
       }
     },
     async doLaunch() {
@@ -132,22 +133,18 @@ function launcher() {
       }
     },
     async closeSession(id) {
-      this.triggerConfirm(
-        "Đóng Session",
-        `Bạn có chắc chắn muốn đóng session ${id}?`,
-        async () => {
-          try {
-            const res = await fetch(`/api/sessions/${id}/close`, {
-              method: "POST",
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-            await this.loadSessions();
-          } catch (err) {
-            this.lastError = `Close failed: ${err.message}`;
-          }
+      this.triggerConfirm("Đóng Session", `Bạn có chắc chắn muốn đóng session ${id}?`, async () => {
+        try {
+          const res = await fetch(`/api/sessions/${id}/close`, {
+            method: "POST",
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          await this.loadSessions();
+        } catch (err) {
+          this.lastError = `Close failed: ${err.message}`;
         }
-      );
+      });
     },
 
     // Theme Toggle
@@ -235,11 +232,7 @@ function launcher() {
       keys.sort((a, b) => a.key.localeCompare(b.key));
 
       if (!q) return keys;
-      return keys.filter(
-        (item) =>
-          item.key.toLowerCase().includes(q) ||
-          String(item.val).toLowerCase().includes(q)
-      );
+      return keys.filter((item) => item.key.toLowerCase().includes(q) || String(item.val).toLowerCase().includes(q));
     },
 
     // Custom confirm dialog handlers
