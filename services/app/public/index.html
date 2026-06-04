@@ -433,88 +433,119 @@
           </div>
         </main>
 
-        <!-- Footer -->
-        <footer class="bg-surface-body border-t border-border flex-shrink-0 select-none flex items-center justify-between px-4 lg:px-7 h-[40px] max-sm:h-[52px]">
-          
-          <!-- Desktop & Tablet Layout: Hidden on Mobile (< 640px) -->
-          <div class="hidden sm:flex items-center justify-between w-full h-full">
-            <!-- Scrollable container for chips -->
-            <div class="flex items-center overflow-x-auto scrollbar-none pr-4 h-full py-2 flex-grow gap-0">
-              <template x-for="(chip, index) in activeChips" :key="chip.label">
+        <!-- Footer (FOOTER.md spec) -->
+        <footer class="bg-surface-body border-t border-border flex-shrink-0 overflow-hidden z-[50] h-[40px] max-[639px]:h-[52px]">
+          <!-- Desktop & Tablet (≥ 640px): single 40px row -->
+          <div class="hidden sm:flex items-center h-full px-4 lg:px-7">
+            <!-- Chips: horizontally scrollable -->
+            <div class="flex items-center overflow-x-auto scrollbar-none flex-grow min-w-0 h-full">
+              <!-- ORG -->
+              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_ORG">
                 <div class="flex items-center flex-shrink-0">
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-muted font-sans" x-text="chip.label"></span>
-                    <span class="text-xs text-text truncate max-w-[160px] font-sans" :title="chip.val" x-text="chip.val"></span>
-                  </div>
-                  <template x-if="index < activeChips.length - 1">
+                  <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">ORG</span>
+                  <span class="text-xs text-text ml-1 max-w-[160px] truncate leading-none" :title="deployEnvs._DOTENVRTDB_RUNNER_ORG" x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG"></span>
+                  <template x-if="deployEnvs._DOTENVRTDB_RUNNER_REPO || deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID || deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT || deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
                     <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
                   </template>
                 </div>
               </template>
-            </div>
-            
-            <!-- All Env Button -->
-            <button @click="deployModalOpen = true" class="flex-shrink-0 text-primary hover:bg-primary-light/40 transition px-2 py-1 rounded text-xs font-medium flex items-center gap-1 min-h-[32px] sm:min-h-0">
-              <span>⚙ All Env</span>
-              <span class="transition-transform duration-200" :class="deployModalOpen ? 'rotate-180' : ''">▾</span>
-            </button>
-          </div>
-
-          <!-- Mobile Layout: Visible only on Mobile (< 640px) -->
-          <div class="flex sm:hidden flex-col justify-between w-full h-full py-1.5 relative">
-            <!-- Row 1: COMMIT + DATE + env button (right-aligned) -->
-            <div class="flex items-center justify-between w-full">
-              <div class="flex items-center gap-0 overflow-x-auto scrollbar-none">
-                <!-- COMMIT -->
-                <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID">
-                  <div class="flex items-center flex-shrink-0">
-                    <div class="flex items-center gap-1">
-                      <span class="text-[10px] font-bold text-muted">COMMIT</span>
-                      <span class="text-[11px] text-text font-mono" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID"></span>
-                    </div>
-                    <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT">
-                      <div class="w-px h-2.5 bg-border mx-2 flex-shrink-0"></div>
-                    </template>
-                  </div>
-                </template>
-                <!-- DATE -->
-                <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT">
-                  <div class="flex items-center flex-shrink-0">
-                    <div class="flex items-center gap-1">
-                      <span class="text-[10px] font-bold text-muted">DATE</span>
-                      <span class="text-[11px] text-text font-sans" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT"></span>
-                    </div>
-                  </div>
-                </template>
-              </div>
-
-              <!-- Env Button -->
-              <button @click="deployModalOpen = true" class="w-[44px] h-[44px] -my-3 flex items-center justify-center text-primary active:bg-primary-light/50 rounded-full transition-colors flex-shrink-0" title="All Env Variables">
-                <span class="text-sm">⚙</span>
-              </button>
-            </div>
-
-            <!-- Row 2: ORG + HOST (truncate to 120px) -->
-            <div class="flex items-center gap-0 overflow-x-auto scrollbar-none pr-8">
-              <!-- ORG -->
-              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_ORG">
+              <!-- REPO -->
+              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_REPO">
                 <div class="flex items-center flex-shrink-0">
-                  <div class="flex items-center gap-1">
-                    <span class="text-[10px] font-bold text-muted">ORG</span>
-                    <span class="text-[11px] text-text truncate max-w-[120px]" :title="deployEnvs._DOTENVRTDB_RUNNER_ORG" x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG"></span>
-                  </div>
+                  <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">REPO</span>
+                  <span class="text-xs text-text ml-1 max-w-[160px] truncate leading-none" :title="deployEnvs._DOTENVRTDB_RUNNER_REPO" x-text="deployEnvs._DOTENVRTDB_RUNNER_REPO"></span>
+                  <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID || deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT || deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
+                    <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
+                  </template>
+                </div>
+              </template>
+              <!-- COMMIT -->
+              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID">
+                <div class="flex items-center flex-shrink-0">
+                  <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">COMMIT</span>
+                  <span class="text-xs text-text font-mono ml-1 leading-none" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID"></span>
+                  <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT || deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
+                    <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
+                  </template>
+                </div>
+              </template>
+              <!-- DATE -->
+              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT">
+                <div class="flex items-center flex-shrink-0">
+                  <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">DATE</span>
+                  <span class="text-xs text-text font-mono ml-1 leading-none" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT"></span>
                   <template x-if="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
-                    <div class="w-px h-2.5 bg-border mx-2 flex-shrink-0"></div>
+                    <div class="w-px h-3 bg-border mx-3 flex-shrink-0"></div>
                   </template>
                 </div>
               </template>
               <!-- HOST -->
               <template x-if="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
                 <div class="flex items-center flex-shrink-0">
-                  <div class="flex items-center gap-1">
-                    <span class="text-[10px] font-bold text-muted">HOST</span>
-                    <span class="text-[11px] text-text truncate max-w-[120px]" :title="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE" x-text="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE"></span>
+                  <span class="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-muted leading-none">HOST</span>
+                  <span class="text-xs text-text ml-1 leading-none" x-text="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE"></span>
+                </div>
+              </template>
+            </div>
+
+            <!-- All Env Button: always visible at right -->
+            <button
+              id="footer-all-env-btn"
+              @click="deployModalOpen = !deployModalOpen"
+              class="flex-shrink-0 ml-4 text-primary hover:bg-primary-light/40 transition-colors px-2 py-1 rounded-sm text-xs font-medium inline-flex items-center gap-1 cursor-pointer border-0 bg-transparent"
+              title="View all deploy environment variables"
+            >
+              <span class="hidden sm:inline">⚙ All Env</span>
+              <span class="sm:hidden">⚙</span>
+              <svg class="w-3 h-3 transition-transform duration-200" :class="deployModalOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+          </div>
+
+          <!-- Mobile (< 640px): two-row layout, 52px -->
+          <div class="flex sm:hidden flex-col justify-center w-full h-full px-4 py-1">
+            <!-- Row 1: COMMIT + DATE + env button -->
+            <div class="flex items-center justify-between w-full">
+              <div class="flex items-center overflow-x-auto scrollbar-none flex-1 min-w-0">
+                <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID">
+                  <div class="flex items-center flex-shrink-0">
+                    <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">COMMIT</span>
+                    <span class="text-[11px] text-text font-mono ml-1" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID"></span>
+                    <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT">
+                      <div class="w-px h-2.5 bg-border mx-2 flex-shrink-0"></div>
+                    </template>
                   </div>
+                </template>
+                <template x-if="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT">
+                  <div class="flex items-center flex-shrink-0">
+                    <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">DATE</span>
+                    <span class="text-[11px] text-text font-mono ml-1" x-text="deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT"></span>
+                  </div>
+                </template>
+              </div>
+              <!-- Mobile env button: 44×44 touch target -->
+              <button
+                @click="deployModalOpen = !deployModalOpen"
+                class="flex-shrink-0 w-11 h-11 flex items-center justify-center text-primary rounded-full hover:bg-primary-light/40 transition-colors"
+                title="All Env Variables"
+              >
+                <span>⚙</span>
+              </button>
+            </div>
+            <!-- Row 2: ORG + HOST (REPO hidden on mobile per spec) -->
+            <div class="flex items-center overflow-x-auto scrollbar-none pr-12">
+              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_ORG">
+                <div class="flex items-center flex-shrink-0">
+                  <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">ORG</span>
+                  <span class="text-[11px] text-text ml-1 max-w-[120px] truncate" :title="deployEnvs._DOTENVRTDB_RUNNER_ORG" x-text="deployEnvs._DOTENVRTDB_RUNNER_ORG"></span>
+                  <template x-if="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
+                    <div class="w-px h-2.5 bg-border mx-2 flex-shrink-0"></div>
+                  </template>
+                </div>
+              </template>
+              <template x-if="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE">
+                <div class="flex items-center flex-shrink-0">
+                  <span class="text-[10px] font-bold uppercase tracking-[0.08em] text-muted">HOST</span>
+                  <span class="text-[11px] text-text ml-1 max-w-[120px] truncate" :title="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE" x-text="deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE"></span>
                 </div>
               </template>
             </div>
@@ -523,65 +554,96 @@
       </div>
     </div>
 
-    <!-- Env Modal -->
-    <div x-show="deployModalOpen" class="fixed inset-0 z-[1000] flex items-center justify-center p-4" x-transition style="display: none;">
-      <!-- Modal Overlay -->
-      <div class="fixed inset-0 bg-slate-900/50" @click="deployModalOpen = false"></div>
-      
-      <!-- Modal Content -->
-      <div class="relative bg-surface rounded-xl shadow-floating w-[520px] max-w-[calc(100vw-32px)] max-h-[90vh] flex flex-col overflow-hidden z-10" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
-        <!-- Modal Header -->
-        <div class="px-6 py-5 border-b border-border relative flex-shrink-0 pr-12">
-          <h4 class="text-base font-semibold text-text font-sans">Deploy Environment</h4>
-          <p class="text-[11px] text-muted font-sans mt-0.5">_DOTENVRTDB_RUNNER_* variables</p>
-          
-          <!-- Close Button -->
-          <button @click="deployModalOpen = false" class="absolute top-2.5 right-2.5 w-11 h-11 flex items-center justify-center text-muted hover:text-text transition-colors" title="Đóng">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    <!-- Deploy Env Modal (FOOTER.md spec) -->
+    <div
+      x-show="deployModalOpen"
+      @keydown.escape.window="deployModalOpen = false"
+      class="fixed inset-0 z-[1000] flex items-center justify-center p-4"
+      x-transition:enter="transition ease-out duration-150"
+      x-transition:enter-start="opacity-0"
+      x-transition:enter-end="opacity-100"
+      x-transition:leave="transition ease-in duration-100"
+      x-transition:leave-start="opacity-100"
+      x-transition:leave-end="opacity-0"
+      style="display: none;"
+    >
+      <!-- Backdrop -->
+      <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-[1px]" @click="deployModalOpen = false"></div>
+
+      <!-- Modal Panel -->
+      <div
+        class="relative bg-surface rounded-xl shadow-floating w-[520px] max-w-[calc(100vw-32px)] max-h-[90vh] flex flex-col overflow-hidden z-10"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 translate-y-2 scale-[0.98]"
+        x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+        x-transition:leave-end="opacity-0 translate-y-2 scale-[0.98]"
+        @click.stop
+      >
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-border flex items-start justify-between flex-shrink-0">
+          <div>
+            <h4 class="text-sm font-semibold text-text">Deploy Environment</h4>
+            <p class="text-[11px] text-muted mt-0.5">_DOTENVRTDB_RUNNER_* variables</p>
+          </div>
+          <button
+            @click="deployModalOpen = false"
+            class="w-8 h-8 flex items-center justify-center text-muted hover:text-text transition-colors rounded-md hover:bg-surface-body ml-4 flex-shrink-0"
+            title="Close"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
-        
-        <!-- Modal Body -->
-        <div class="p-6 overflow-y-auto flex-grow flex flex-col gap-4">
-          <!-- Search Input -->
-          <div class="relative flex-shrink-0">
-            <input x-model="deploySearchQuery" type="search" placeholder="Filter variables..." class="w-full h-9 bg-surface-input text-text border border-border rounded-md px-3 py-1.5 text-xs focus:border-primary focus:ring-2 focus:ring-primary-light" />
+
+        <!-- Body -->
+        <div class="flex flex-col flex-grow overflow-hidden">
+          <!-- Search -->
+          <div class="px-6 py-3 border-b border-border flex-shrink-0">
+            <input
+              x-model="deploySearchQuery"
+              type="search"
+              placeholder="Filter variables..."
+              class="w-full h-9 bg-surface-input text-text border border-border rounded-md px-3 text-xs focus:outline-none"
+            />
           </div>
-          
-          <!-- Table Container -->
-          <div class="border border-border rounded-lg overflow-hidden flex-grow overflow-y-auto bg-surface-body/20">
+
+          <!-- Table -->
+          <div class="overflow-y-auto flex-grow">
             <table class="w-full table-fixed">
               <thead class="bg-surface-body text-[10px] font-bold text-muted uppercase tracking-wider sticky top-0 z-10">
                 <tr>
-                  <th class="w-[42%] max-sm:w-[35%] text-left px-4 py-2.5">Variable Name</th>
-                  <th class="w-[58%] max-sm:w-[65%] text-left px-4 py-2.5">Value</th>
+                  <th class="w-[42%] max-[480px]:w-[35%] text-left px-4 py-2.5">Variable</th>
+                  <th class="w-[58%] max-[480px]:w-[65%] text-left px-4 py-2.5">Value</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-border">
                 <template x-for="item in filteredEnvs()" :key="item.rawKey">
                   <tr class="hover:bg-surface-hover transition-colors">
-                    <!-- Variable Name -->
-                    <td class="px-4 py-2.5 text-xs font-semibold text-muted font-mono break-all pr-3" x-text="item.key"></td>
-                    <!-- Value -->
-                    <td class="px-4 py-2.5 text-xs text-text font-mono break-all">
+                    <td class="px-4 py-2.5 text-[13px] font-medium text-muted font-mono break-all pr-3" x-text="item.key"></td>
+                    <td class="px-4 py-2.5 text-[13px] text-text break-all">
                       <template x-if="item.link">
-                        <a :href="item.link.href" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline inline-flex items-center gap-1 break-all font-sans font-medium">
-                          <svg class="w-3.5 h-3.5 flex-shrink-0 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        <a
+                          :href="item.link.href"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-primary hover:underline inline-flex items-center gap-1 break-all font-medium"
+                        >
+                          <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                           <span x-text="item.link.text" class="break-all"></span>
                         </a>
                       </template>
                       <template x-if="!item.link">
-                        <span class="break-all" x-text="item.val"></span>
+                        <span class="font-mono break-all" x-text="item.val"></span>
                       </template>
                     </td>
                   </tr>
                 </template>
-                <template x-if="filteredEnvs().length === 0">
-                  <tr>
-                    <td colspan="2" class="text-center py-8 text-xs text-muted italic font-sans">
-                      No variables match
-                    </td>
-                  </tr>
+                <template x-if="filteredEnvs().length === 0 && deploySearchQuery">
+                  <tr><td colspan="2" class="text-center py-8 text-xs text-muted italic">No variables match "<span x-text="deploySearchQuery" class="font-medium"></span>"</td></tr>
+                </template>
+                <template x-if="filteredEnvs().length === 0 && !deploySearchQuery">
+                  <tr><td colspan="2" class="text-center py-8 text-xs text-muted italic">No deploy environment variables found</td></tr>
                 </template>
               </tbody>
             </table>
