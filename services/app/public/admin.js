@@ -40,13 +40,31 @@ function admin() {
       envText: "",
     },
 
+    // UI state
+    pageTitle: "Admin Settings",
+    darkMode: false,
+    sidebarOpen: false,
+    deployModalOpen: false,
+    deploySearchQuery: "",
+    deployEnvs: {},
+
+    // Custom confirm dialog state
+    confirmModalOpen: false,
+    confirmModalTitle: "",
+    confirmModalMessage: "",
+    confirmModalCallback: null,
+
     async init() {
+      // Check theme on init
+      this.darkMode = document.documentElement.classList.contains("dark");
+
       await Promise.all([
         this.loadGit(),
         this.loadRepos(),
         this.loadAgents(),
         this.loadCreds(),
         this.loadSlots(),
+        this.loadDeployInfo(),
       ]);
       // Auto-refresh slots every 4s when on slots tab.
       setInterval(() => {
@@ -162,14 +180,19 @@ function admin() {
       }
     },
     async deleteGit(id) {
-      if (!confirm("Xóa Git Credential và tất cả repo cache liên quan?")) return;
-      try {
-        await this.req(`/api/git-credentials/${id}`, { method: "DELETE" });
-        await Promise.all([this.loadGit(), this.loadRepos()]);
-        this.flash("✓ Deleted", "info");
-      } catch (err) {
-        this.flash(`Delete failed: ${err.message}`, "error");
-      }
+      this.triggerConfirm(
+        "Xóa Git Credential",
+        "Bạn có chắc chắn muốn xóa Git Credential này và tất cả repo cache liên quan?",
+        async () => {
+          try {
+            await this.req(`/api/git-credentials/${id}`, { method: "DELETE" });
+            await Promise.all([this.loadGit(), this.loadRepos()]);
+            this.flash("✓ Deleted", "info");
+          } catch (err) {
+            this.flash(`Delete failed: ${err.message}`, "error");
+          }
+        }
+      );
     },
 
     // ── Repos ───────────────────────────────────────────────────
@@ -254,13 +277,18 @@ function admin() {
       }
     },
     async deleteAgent(id) {
-      if (!confirm("Xóa agent profile?")) return;
-      try {
-        await this.req(`/api/agent-profiles/${id}`, { method: "DELETE" });
-        await this.loadAgents();
-      } catch (err) {
-        this.flash(`Delete agent: ${err.message}`, "error");
-      }
+      this.triggerConfirm(
+        "Xóa Agent Profile",
+        "Bạn có chắc chắn muốn xóa agent profile này?",
+        async () => {
+          try {
+            await this.req(`/api/agent-profiles/${id}`, { method: "DELETE" });
+            await this.loadAgents();
+          } catch (err) {
+            this.flash(`Delete agent: ${err.message}`, "error");
+          }
+        }
+      );
     },
 
     // ── Agent Credentials ───────────────────────────────────────
@@ -330,13 +358,18 @@ function admin() {
       }
     },
     async deleteCred(id) {
-      if (!confirm("Xóa agent credential?")) return;
-      try {
-        await this.req(`/api/agent-credentials/${id}`, { method: "DELETE" });
-        await this.loadCreds();
-      } catch (err) {
-        this.flash(`Delete cred: ${err.message}`, "error");
-      }
+      this.triggerConfirm(
+        "Xóa Agent Credential",
+        "Bạn có chắc chắn muốn xóa agent credential này?",
+        async () => {
+          try {
+            await this.req(`/api/agent-credentials/${id}`, { method: "DELETE" });
+            await this.loadCreds();
+          } catch (err) {
+            this.flash(`Delete cred: ${err.message}`, "error");
+          }
+        }
+      );
     },
 
     // ── Slots ───────────────────────────────────────────────────
@@ -349,29 +382,146 @@ function admin() {
       }
     },
     async resetSlot(slot) {
-      if (!confirm(`Bạn có chắc muốn giải phóng (release) slot ${slot}? Việc này sẽ dừng container và hủy session đang chạy.`)) return;
-      try {
-        await this.req(`/api/admin/slots/${slot}/reset`, { method: "POST" });
-        this.flash(`✓ Đã giải phóng slot ${slot}`, "info");
-        await this.loadSlots();
-      } catch (err) {
-        this.flash(`Lỗi giải phóng slot: ${err.message}`, "error");
-      }
+      this.triggerConfirm(
+        "Giải phóng Slot",
+        `Bạn có chắc muốn giải phóng (release) slot ${slot}? Việc này sẽ dừng container và hủy session đang chạy.`,
+        async () => {
+          try {
+            await this.req(`/api/admin/slots/${slot}/reset`, { method: "POST" });
+            this.flash(`✓ Đã giải phóng slot ${slot}`, "info");
+            await this.loadSlots();
+          } catch (err) {
+            this.flash(`Lỗi giải phóng slot: ${err.message}`, "error");
+          }
+        }
+      );
     },
     async resetAllNonFreeSlots() {
-      if (!confirm("Cảnh báo: Bạn có chắc chắn muốn cưỡng bức giải phóng TẤT CẢ các slot đang bận/lỗi không? Hành động này sẽ dừng toàn bộ các sessions đang chạy.")) return;
-      try {
-        const nonFreeSlots = this.slots.filter(s => s.status !== "free").map(s => s.slot);
-        let count = 0;
-        for (const slot of nonFreeSlots) {
-          await this.req(`/api/admin/slots/${slot}/reset`, { method: "POST" }).catch(() => null);
-          count++;
+      this.triggerConfirm(
+        "Giải phóng TẤT CẢ Slots",
+        "Cảnh báo: Bạn có chắc chắn muốn cưỡng bức giải phóng TẤT CẢ các slot đang bận/lỗi không? Hành động này sẽ dừng toàn bộ các sessions đang chạy.",
+        async () => {
+          try {
+            const nonFreeSlots = this.slots.filter(s => s.status !== "free").map(s => s.slot);
+            let count = 0;
+            for (const slot of nonFreeSlots) {
+              await this.req(`/api/admin/slots/${slot}/reset`, { method: "POST" }).catch(() => null);
+              count++;
+            }
+            this.flash(`✓ Đã giải phóng ${count} slots`, "info");
+            await this.loadSlots();
+          } catch (err) {
+            this.flash(`Lỗi giải phóng: ${err.message}`, "error");
+          }
         }
-        this.flash(`✓ Đã giải phóng ${count} slots`, "info");
-        await this.loadSlots();
-      } catch (err) {
-        this.flash(`Lỗi giải phóng: ${err.message}`, "error");
+      );
+    },
+
+    // Theme Toggle
+    toggleTheme() {
+      this.darkMode = !this.darkMode;
+      if (this.darkMode) {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("theme", "light");
       }
-    }
+    },
+
+    // Load Deploy Info
+    async loadDeployInfo() {
+      try {
+        const r = await fetch("/api/deploy-info").then((r) => r.json());
+        this.deployEnvs = r.envs || {};
+      } catch (err) {
+        // not fatal
+      }
+    },
+
+    // Active Deploy Chips
+    get activeChips() {
+      const list = [];
+      if (this.deployEnvs._DOTENVRTDB_RUNNER_ORG) {
+        list.push({ label: "ORG", val: this.deployEnvs._DOTENVRTDB_RUNNER_ORG });
+      }
+      if (this.deployEnvs._DOTENVRTDB_RUNNER_REPO) {
+        list.push({ label: "REPO", val: this.deployEnvs._DOTENVRTDB_RUNNER_REPO, truncate: true });
+      }
+      if (this.deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID) {
+        list.push({ label: "COMMIT", val: this.deployEnvs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID });
+      }
+      if (this.deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT) {
+        list.push({ label: "DATE", val: this.deployEnvs._DOTENVRTDB_RUNNER_COMMIT_AT });
+      }
+      if (this.deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE) {
+        list.push({ label: "HOST", val: this.deployEnvs._DOTENVRTDB_RUNNER_HOST_TYPE });
+      }
+      return list;
+    },
+
+    // Link Detection
+    detectLink(key, val) {
+      if (!val) return null;
+      val = String(val);
+
+      // Rule 1 — Explicit URL
+      if (val.startsWith("https://") || val.startsWith("http://")) {
+        return { href: val, text: val };
+      }
+
+      // Rule 2 — Bare hostname or hostname+path
+      if (/^[\w][\w\-]*(\.[a-zA-Z]{2,})([\/:][^\s]*)?$/.test(val) && !val.includes("@") && !val.includes(" ")) {
+        return { href: "https://" + val, text: val };
+      }
+
+      // Rule 3 — GitHub-relative path
+      const serverUrl = this.deployEnvs._DOTENVRTDB_RUNNER_SERVER_URL;
+      if (serverUrl && /^[\w\-]+\/[\w\-]+\/.+$/.test(val)) {
+        const cleanVal = val.split("@")[0];
+        const baseUrl = serverUrl.endsWith("/") ? serverUrl.slice(0, -1) : serverUrl;
+        return { href: baseUrl + "/" + cleanVal, text: val };
+      }
+
+      return null;
+    },
+
+    // Filtered Env variables
+    filteredEnvs() {
+      const q = this.deploySearchQuery.trim().toLowerCase();
+      const keys = Object.keys(this.deployEnvs)
+        .filter((k) => k.startsWith("_DOTENVRTDB_RUNNER_"))
+        .map((k) => {
+          const stripped = k.replace(/^_DOTENVRTDB_RUNNER_/, "");
+          const val = this.deployEnvs[k] || "—";
+          const link = this.detectLink(k, val);
+          return { rawKey: k, key: stripped, val, link };
+        });
+
+      // Sort alphabetically
+      keys.sort((a, b) => a.key.localeCompare(b.key));
+
+      if (!q) return keys;
+      return keys.filter(
+        (item) =>
+          item.key.toLowerCase().includes(q) ||
+          String(item.val).toLowerCase().includes(q)
+      );
+    },
+
+    triggerConfirm(title, message, callback) {
+      this.confirmModalTitle = title;
+      this.confirmModalMessage = message;
+      this.confirmModalCallback = callback;
+      this.confirmModalOpen = true;
+    },
+
+    async executeConfirm() {
+      this.confirmModalOpen = false;
+      if (this.confirmModalCallback) {
+        await this.confirmModalCallback();
+        this.confirmModalCallback = null;
+      }
+    },
   };
 }

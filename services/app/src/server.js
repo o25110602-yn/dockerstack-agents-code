@@ -656,6 +656,34 @@ app.get(
   }),
 );
 
+// ── Deploy Info ────────────────────────────────────────────────────
+
+app.get(
+  "/api/deploy-info",
+  wrap(async (_req, res) => {
+    const envs = {};
+    for (const [k, v] of Object.entries(process.env)) {
+      if (k.startsWith("_DOTENVRTDB_RUNNER_")) {
+        envs[k] = v;
+      }
+    }
+    // Fallback mock data if empty (for local testing/dev UI check)
+    if (Object.keys(envs).length === 0) {
+      envs._DOTENVRTDB_RUNNER_ORG = "o25110602-yn";
+      envs._DOTENVRTDB_RUNNER_REPO = "dockerstack-agents-code";
+      envs._DOTENVRTDB_RUNNER_COMMIT_SHORT_ID = "afdcce3";
+      envs._DOTENVRTDB_RUNNER_COMMIT_AT = "1.26.0604.1600";
+      envs._DOTENVRTDB_RUNNER_HOST_TYPE = "github";
+      envs._DOTENVRTDB_RUNNER_ACTOR = "ongtr";
+      envs._DOTENVRTDB_RUNNER_ARCH = "X64";
+      envs._DOTENVRTDB_RUNNER_BRANCH = "main";
+      envs._DOTENVRTDB_RUNNER_SERVER_URL = "https://github.com";
+      envs._DOTENVRTDB_RUNNER_WORKFLOW_FILE = "o25110602-yn/dockerstack-agents-code/.github/workflows/deploy.yml@refs/heads/main";
+    }
+    res.json({ envs });
+  }),
+);
+
 // ── Static UI ──────────────────────────────────────────────────────
 
 const PUBLIC_DIR = path.join(__dirname, "..", "public");

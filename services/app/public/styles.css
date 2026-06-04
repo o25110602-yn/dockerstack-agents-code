@@ -1,9 +1,147 @@
-/* public/styles.css — minor visual tweaks on top of Tailwind CDN. */
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* public/styles.css — Falcon Dashboard styling overrides */
+
+:root {
+  /* Colors */
+  --primary: #2c7be5;
+  --primary-light: #d5e5fa;
+  --primary-dark: #1a68c8;
+  
+  --success: #00d27a;
+  --success-light: #ccf6e4;
+  --success-dark: #00864e;
+  
+  --warning: #f5803e;
+  --warning-light: #fde6d8;
+  --warning-dark: #c45111;
+  
+  --danger: #e63757;
+  --danger-light: #fce8eb;
+  --danger-dark: #c0002e;
+  
+  --info: #27bcfd;
+  --info-light: #d5f0fe;
+  --info-dark: #0084b0;
+  
+  --dark: #0b1727;
+  
+  --surface: #ffffff;
+  --surface-body: #edf2f9;
+  --surface-hover: #f9fbfd;
+  --surface-input: #ffffff;
+  --surface-sidebar: #0b1727;
+  
+  --clr-text: #344050;
+  --clr-muted: #748194;
+  --clr-border: #d8e2ef;
+  --clr-border-light: #edf2f9;
+  
+  --sidebar-text: #9da9bb;
+  --sidebar-hover: rgba(255, 255, 255, 0.08);
+  --sidebar-active: rgba(44, 123, 229, 0.15);
+  
+  --card-shadow: 0 7px 14px 0 rgba(65, 69, 88, 0.10), 0 3px 6px 0 rgba(0, 0, 0, 0.07);
+  --modal-shadow: 0 20px 60px rgba(0, 0, 0, 0.20);
 }
+
+html.dark {
+  --surface: #0f2035;
+  --surface-body: #0b1727;
+  --surface-input: #122540;
+  --surface-hover: #162a45;
+  --surface-sidebar: #060e1a;
+  
+  --clr-text: #d8e2ef;
+  --clr-muted: #9da9bb;
+  --clr-border: #1e3a5f;
+  --clr-border-light: #162a45;
+  
+  --sidebar-text: #9da9bb;
+  --sidebar-hover: rgba(255, 255, 255, 0.08);
+  --sidebar-active: rgba(44, 123, 229, 0.15);
+  
+  --card-shadow: 0 7px 14px 0 rgba(0, 0, 0, 0.40), 0 3px 6px 0 rgba(0, 0, 0, 0.30);
+  --modal-shadow: 0 20px 60px rgba(0, 0, 0, 0.50);
+}
+
+body {
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+  background-color: var(--surface-body);
+  color: var(--clr-text);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 code,
 .font-mono {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--clr-border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--clr-muted);
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Focus Outlines */
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px var(--primary-light) !important;
+  outline: none !important;
+}
+
+/* Table styling overrides to guarantee no content clipping */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+th {
+  background-color: var(--clr-border-light);
+  color: var(--clr-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--clr-border);
+}
+
+td {
+  color: var(--clr-text);
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--clr-border);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr:hover td {
+  background-color: var(--surface-hover);
 }
